@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   LogOut, QrCode, Pencil, Plus, UtensilsCrossed,
   Box, CheckCircle2, Clock, AlertCircle, Loader2,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ItemWithDetails, Menu, ModelJob } from "@/lib/types";
+import { RestaurantSettings } from "@/components/RestaurantSettings";
 
 /* ─── Onboarding dialog (first time) ─── */
 const OnboardingDialog = ({ open, onCreated }: { open: boolean; onCreated: (id: string) => void }) => {
@@ -237,116 +239,127 @@ const Dashboard = () => {
       </header>
 
       {restaurant && (
-        <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        <main className="max-w-5xl mx-auto px-6 py-8">
+          <Tabs defaultValue="dashboard" className="space-y-6">
+            <TabsList className="w-full max-w-md">
+              <TabsTrigger value="dashboard" className="flex-1">Dashboard</TabsTrigger>
+              <TabsTrigger value="settings" className="flex-1 flex items-center gap-1.5">
+                <Settings className="h-3.5 w-3.5" /> Mon restaurant
+              </TabsTrigger>
+            </TabsList>
 
-          {/* ── Stats row ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold">{menus?.length || 0}</p>
-                <p className="text-xs text-muted-foreground">Menus</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold">{totalItems}</p>
-                <p className="text-xs text-muted-foreground">Plats & Boissons</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-green-600">{readyModels}</p>
-                <p className="text-xs text-muted-foreground">Modèles 3D prêts</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-amber-500">{pendingModels}</p>
-                <p className="text-xs text-muted-foreground">En cours de génération</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* ── Menus section ── */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Mes menus</h2>
-              {/* For now single menu, but ready for multiple */}
-            </div>
-            {menusLoading ? (
-              <div className="space-y-3">
-                {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+            <TabsContent value="dashboard" className="space-y-8 mt-0">
+              {/* ── Stats row ── */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold">{menus?.length || 0}</p>
+                    <p className="text-xs text-muted-foreground">Menus</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold">{totalItems}</p>
+                    <p className="text-xs text-muted-foreground">Plats & Boissons</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-green-600">{readyModels}</p>
+                    <p className="text-xs text-muted-foreground">Modèles 3D prêts</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <p className="text-2xl font-bold text-amber-500">{pendingModels}</p>
+                    <p className="text-xs text-muted-foreground">En cours de génération</p>
+                  </CardContent>
+                </Card>
               </div>
-            ) : !menus?.length ? (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">Aucun menu créé</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {menus.map((m) => (
-                  <MenuCard key={m.id} menu={m} restaurantId={restaurant.id} />
-                ))}
-              </div>
-            )}
-          </section>
 
-          {/* ── 3D Generation section ── */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <Box className="h-5 w-5" /> Modèles 3D
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Visualisez l'état de génération 3D de chaque plat
-                </p>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            {totalItems > 0 && (
-              <Card className="mb-4">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Progression globale</span>
-                    <span className="text-sm font-bold text-primary">{progress3D}%</span>
+              {/* ── Menus section ── */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Mes menus</h2>
+                </div>
+                {menusLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
                   </div>
-                  <Progress value={progress3D} className="h-2" />
-                  <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-500" /> {readyModels} prêts</span>
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-amber-500" /> {pendingModels} en cours</span>
-                    <span className="flex items-center gap-1"><AlertCircle className="h-3 w-3 text-destructive" /> {failedModels} erreurs</span>
-                    <span className="flex items-center gap-1"><Box className="h-3 w-3" /> {noModels} sans modèle</span>
+                ) : !menus?.length ? (
+                  <Card>
+                    <CardContent className="py-8 text-center">
+                      <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground">Aucun menu créé</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {menus.map((m) => (
+                      <MenuCard key={m.id} menu={m} restaurantId={restaurant.id} />
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </section>
 
-            {/* Items list */}
-            {itemsLoading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
-              </div>
-            ) : !items?.length ? (
-              <Card>
-                <CardContent className="py-8 text-center">
-                  <Box className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">Ajoutez des plats dans un menu pour commencer la génération 3D</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="p-2 divide-y divide-border">
-                  {items.map((item) => (
-                    <ItemModelRow key={item.id} item={item} />
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-          </section>
+              {/* ── 3D Generation section ── */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Box className="h-5 w-5" /> Modèles 3D
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Visualisez l'état de génération 3D de chaque plat
+                    </p>
+                  </div>
+                </div>
+
+                {totalItems > 0 && (
+                  <Card className="mb-4">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">Progression globale</span>
+                        <span className="text-sm font-bold text-primary">{progress3D}%</span>
+                      </div>
+                      <Progress value={progress3D} className="h-2" />
+                      <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
+                        <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-500" /> {readyModels} prêts</span>
+                        <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-amber-500" /> {pendingModels} en cours</span>
+                        <span className="flex items-center gap-1"><AlertCircle className="h-3 w-3 text-destructive" /> {failedModels} erreurs</span>
+                        <span className="flex items-center gap-1"><Box className="h-3 w-3" /> {noModels} sans modèle</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {itemsLoading ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+                  </div>
+                ) : !items?.length ? (
+                  <Card>
+                    <CardContent className="py-8 text-center">
+                      <Box className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground">Ajoutez des plats dans un menu pour commencer la génération 3D</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="p-2 divide-y divide-border">
+                      {items.map((item) => (
+                        <ItemModelRow key={item.id} item={item} />
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+              </section>
+            </TabsContent>
+
+            <TabsContent value="settings" className="mt-0">
+              <RestaurantSettings restaurant={restaurant} />
+            </TabsContent>
+          </Tabs>
         </main>
       )}
     </div>
