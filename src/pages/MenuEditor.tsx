@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Eye, EyeOff, Upload, Image } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Upload, Image, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { toast } from "sonner";
 import type { CategoryWithItems, ItemWithDetails, Restaurant } from "@/lib/types";
 import { type MenuDesign, DEFAULT_DESIGN } from "@/lib/menu-templates";
@@ -46,6 +46,8 @@ const MenuEditor = () => {
   const [itemAllergens, setItemAllergens] = useState("");
   const [previewLang, setPreviewLang] = useState<string>('fr');
   const [leftTab, setLeftTab] = useState<string>('structure');
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
 
   // Design state
   const [design, setDesign] = useState<MenuDesign>(DEFAULT_DESIGN);
@@ -207,9 +209,22 @@ const MenuEditor = () => {
       </header>
 
       {/* 3-panel editor */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Left collapse toggle */}
+        {!leftOpen && (
+          <Button variant="ghost" size="icon" className="absolute left-1 top-1 z-10 h-7 w-7" onClick={() => setLeftOpen(true)}>
+            <PanelLeftOpen className="h-4 w-4" />
+          </Button>
+        )}
+
         {/* LEFT PANEL: Structure + Templates */}
-        <div className="w-64 border-r border-border bg-card overflow-y-auto shrink-0 hidden md:flex flex-col">
+        {leftOpen && (
+        <div className="w-64 border-r border-border bg-card overflow-y-auto shrink-0 flex flex-col">
+          <div className="flex items-center justify-end p-1 border-b border-border shrink-0">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLeftOpen(false)}>
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           <Tabs value={leftTab} onValueChange={setLeftTab} className="flex flex-col flex-1">
             <TabsList className="w-full rounded-none border-b border-border h-9 bg-transparent shrink-0">
               <TabsTrigger value="structure" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
@@ -234,7 +249,6 @@ const MenuEditor = () => {
             </TabsContent>
             <TabsContent value="templates" className="flex-1 overflow-y-auto m-0 p-3">
               <TemplatePicker design={design} onChange={handleDesignChange} />
-              {/* Logo upload */}
               <div className="mt-4 space-y-2">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Image className="h-3.5 w-3.5" /> Logo
@@ -254,6 +268,7 @@ const MenuEditor = () => {
             </TabsContent>
           </Tabs>
         </div>
+        )}
 
         {/* CENTER: Canvas Preview */}
         <div className="flex-1 overflow-y-auto bg-muted/30 flex items-start justify-center p-6">
@@ -303,8 +318,21 @@ const MenuEditor = () => {
           />
         </div>
 
+        {/* Right collapse toggle */}
+        {!rightOpen && (
+          <Button variant="ghost" size="icon" className="absolute right-1 top-1 z-10 h-7 w-7" onClick={() => setRightOpen(true)}>
+            <PanelRightOpen className="h-4 w-4" />
+          </Button>
+        )}
+
         {/* RIGHT PANEL: Design + Properties */}
-        <div className="w-64 border-l border-border bg-card overflow-y-auto shrink-0 hidden md:flex flex-col">
+        {rightOpen && (
+        <div className="w-64 border-l border-border bg-card overflow-y-auto shrink-0 flex flex-col">
+          <div className="flex items-center justify-start p-1 border-b border-border shrink-0">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRightOpen(false)}>
+              <PanelRightClose className="h-3.5 w-3.5" />
+            </Button>
+          </div>
           <Tabs defaultValue="design" className="flex flex-col flex-1">
             <TabsList className="w-full rounded-none border-b border-border h-9 bg-transparent shrink-0">
               <TabsTrigger value="design" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
@@ -337,6 +365,7 @@ const MenuEditor = () => {
             </TabsContent>
           </Tabs>
         </div>
+        )}
       </div>
 
       {/* Add Category Dialog */}
