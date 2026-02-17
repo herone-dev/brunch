@@ -437,40 +437,67 @@ export type Database = {
       }
       restaurants: {
         Row: {
+          address: string | null
           city: string | null
+          cover_image_path: string | null
           created_at: string
           default_lang: string
+          description: string | null
+          email: string | null
+          facebook: string | null
           id: string
+          instagram: string | null
           logo_path: string | null
           name: string
           owner_user_id: string
+          phone: string | null
           slug: string
           supported_langs: string[]
+          tiktok: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
+          address?: string | null
           city?: string | null
+          cover_image_path?: string | null
           created_at?: string
           default_lang?: string
+          description?: string | null
+          email?: string | null
+          facebook?: string | null
           id?: string
+          instagram?: string | null
           logo_path?: string | null
           name: string
           owner_user_id: string
+          phone?: string | null
           slug: string
           supported_langs?: string[]
+          tiktok?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
+          address?: string | null
           city?: string | null
+          cover_image_path?: string | null
           created_at?: string
           default_lang?: string
+          description?: string | null
+          email?: string | null
+          facebook?: string | null
           id?: string
+          instagram?: string | null
           logo_path?: string | null
           name?: string
           owner_user_id?: string
+          phone?: string | null
           slug?: string
           supported_langs?: string[]
+          tiktok?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
