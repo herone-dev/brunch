@@ -317,6 +317,7 @@ export type Database = {
       menus: {
         Row: {
           created_at: string
+          design_json: Json | null
           id: string
           name: string
           published_at: string | null
@@ -326,6 +327,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          design_json?: Json | null
           id?: string
           name?: string
           published_at?: string | null
@@ -335,6 +337,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          design_json?: Json | null
           id?: string
           name?: string
           published_at?: string | null
