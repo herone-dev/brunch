@@ -304,7 +304,7 @@ const MenuEditor = () => {
         </div>
 
         {/* RIGHT PANEL: Design + Properties */}
-        <div className="w-72 border-l border-border bg-card overflow-y-auto shrink-0 hidden lg:flex flex-col">
+        <div className="w-64 border-l border-border bg-card overflow-y-auto shrink-0 hidden md:flex flex-col">
           <Tabs defaultValue="design" className="flex flex-col flex-1">
             <TabsList className="w-full rounded-none border-b border-border h-9 bg-transparent shrink-0">
               <TabsTrigger value="design" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
