@@ -4,6 +4,7 @@ export interface MenuDesign {
   coverSubtitle?: string;
   logoUrl?: string;
   overrides?: Partial<TemplateStyles>;
+  elementStyles?: Record<string, import('@/components/menu-editor/FloatingToolbar').ElementStyle>;
 }
 
 export interface TemplateStyles {

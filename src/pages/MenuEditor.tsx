@@ -274,6 +274,32 @@ const MenuEditor = () => {
                 if (item) { setSelectedCategory(cat); setSelectedItem(item); break; }
               }
             }}
+            onDesignChange={handleDesignChange}
+            onUpdateItemText={(itemId, field, lang, value) => {
+              const translations = field === 'name'
+                ? [{ lang, name: value, description: '' }]
+                : [{ lang, name: '', description: value }];
+              // For inline edits, build proper translation payload
+              const cat = menu?.categories.find(c => c.items.some(i => i.id === itemId));
+              const item = cat?.items.find(i => i.id === itemId);
+              if (item) {
+                const existing = item.translations.find(t => t.lang === lang);
+                updateItem.mutate({
+                  itemId,
+                  translations: [{
+                    lang,
+                    name: field === 'name' ? value : (existing?.name || ''),
+                    description: field === 'description' ? value : (existing?.description || ''),
+                  }],
+                });
+              }
+            }}
+            onUpdateCategoryText={(catId, lang, value) => {
+              updateCategory.mutate({
+                categoryId: catId,
+                translations: [{ lang, name: value }],
+              });
+            }}
           />
         </div>
 
