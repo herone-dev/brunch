@@ -303,22 +303,39 @@ const MenuEditor = () => {
           />
         </div>
 
-        {/* RIGHT PANEL: Properties / Customization */}
-        <div className="w-72 border-l border-border bg-card overflow-y-auto shrink-0 hidden lg:block p-3">
-          {selectedItem ? (
-            <ItemProperties
-              item={selectedItem}
-              onUpdate={(data) => { updateItem.mutate({ itemId: selectedItem.id, ...data }); toast.success("Mis à jour !"); }}
-              onDelete={() => { deleteItem.mutate(selectedItem.id); setSelectedItem(null); toast.success("Supprimé"); }}
-            />
-          ) : selectedCategory ? (
-            <CategoryProperties
-              category={selectedCategory}
-              onUpdate={(data) => { updateCategory.mutate({ categoryId: selectedCategory.id, ...data }); toast.success("Mis à jour !"); }}
-            />
-          ) : (
-            <EditorToolbar design={design} onChange={handleDesignChange} />
-          )}
+        {/* RIGHT PANEL: Design + Properties */}
+        <div className="w-72 border-l border-border bg-card overflow-y-auto shrink-0 hidden lg:flex flex-col">
+          <Tabs defaultValue="design" className="flex flex-col flex-1">
+            <TabsList className="w-full rounded-none border-b border-border h-9 bg-transparent shrink-0">
+              <TabsTrigger value="design" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                Design
+              </TabsTrigger>
+              <TabsTrigger value="properties" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                Propriétés
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="design" className="flex-1 overflow-y-auto m-0 p-3">
+              <EditorToolbar design={design} onChange={handleDesignChange} />
+            </TabsContent>
+            <TabsContent value="properties" className="flex-1 overflow-y-auto m-0 p-3">
+              {selectedItem ? (
+                <ItemProperties
+                  item={selectedItem}
+                  onUpdate={(data) => { updateItem.mutate({ itemId: selectedItem.id, ...data }); toast.success("Mis à jour !"); }}
+                  onDelete={() => { deleteItem.mutate(selectedItem.id); setSelectedItem(null); toast.success("Supprimé"); }}
+                />
+              ) : selectedCategory ? (
+                <CategoryProperties
+                  category={selectedCategory}
+                  onUpdate={(data) => { updateCategory.mutate({ categoryId: selectedCategory.id, ...data }); toast.success("Mis à jour !"); }}
+                />
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-xs">Sélectionnez un élément sur le canvas pour modifier ses propriétés</p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 

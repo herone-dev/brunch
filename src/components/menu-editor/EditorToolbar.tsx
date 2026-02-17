@@ -255,6 +255,29 @@ export function EditorToolbar({ design, onChange }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Border radius */}
+      <div className="space-y-3">
+        <p className="text-xs font-medium">Arrondis</p>
+        <div className="grid grid-cols-4 gap-1.5">
+          {[
+            { label: 'Aucun', value: '0px' },
+            { label: 'Léger', value: '4px' },
+            { label: 'Moyen', value: '8px' },
+            { label: 'Fort', value: '16px' },
+          ].map(r => (
+            <Button
+              key={r.value}
+              size="sm"
+              variant={styles.borderRadius === r.value ? 'default' : 'outline'}
+              className="text-[10px] h-7"
+              onClick={() => updateOverride('borderRadius', r.value)}
+            >
+              {r.label}
+            </Button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
