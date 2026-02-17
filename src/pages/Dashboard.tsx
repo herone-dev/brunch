@@ -1,29 +1,31 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useMyRestaurants, useCreateRestaurant } from "@/hooks/useRestaurants";
+import { useMyRestaurant, useRestaurantMenus, useRestaurantItems, useModelJobs } from "@/hooks/useDashboard";
+import { useCreateRestaurant } from "@/hooks/useRestaurants";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, UtensilsCrossed, LogOut, QrCode, Pencil } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import {
+  LogOut, QrCode, Pencil, Plus, UtensilsCrossed,
+  Box, CheckCircle2, Clock, AlertCircle, Loader2,
+  FileText, Eye, EyeOff, Settings, Image as ImageIcon,
+} from "lucide-react";
 import { toast } from "sonner";
+import type { ItemWithDetails, Menu, ModelJob } from "@/lib/types";
 
-const Dashboard = () => {
-  const { user, loading: authLoading, signOut } = useAuth();
-  const navigate = useNavigate();
-  const { data: restaurants, isLoading } = useMyRestaurants();
+/* ─── Onboarding dialog (first time) ─── */
+const OnboardingDialog = ({ open, onCreated }: { open: boolean; onCreated: (id: string) => void }) => {
   const createRestaurant = useCreateRestaurant();
-  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [slug, setSlug] = useState("");
-
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/login");
-  }, [authLoading, user, navigate]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,100 +37,318 @@ const Dashboard = () => {
         supported_langs: ["fr", "en"],
       });
       toast.success("Restaurant créé !");
-      setOpen(false);
-      setName("");
-      setCity("");
-      setSlug("");
-      navigate(`/app/restaurants/${result.id}/menu`);
+      onCreated(result.id);
     } catch (err: any) {
       toast.error(err.message || "Erreur");
     }
   };
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Skeleton className="w-64 h-8" /></div>;
+  return (
+    <Dialog open={open}>
+      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle className="text-xl">Bienvenue sur BRUNCH 👋</DialogTitle>
+          <p className="text-sm text-muted-foreground">Commençons par créer votre restaurant.</p>
+        </DialogHeader>
+        <form onSubmit={handleCreate} className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label>Nom du restaurant</Label>
+            <Input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""));
+              }}
+              placeholder="Le Petit Bistrot"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Ville</Label>
+            <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Paris" />
+          </div>
+          <div className="space-y-2">
+            <Label>Slug (URL du menu)</Label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">/m/</span>
+              <Input value={slug} onChange={(e) => setSlug(e.target.value)} required />
+            </div>
+          </div>
+          <Button type="submit" className="w-full" disabled={createRestaurant.isPending}>
+            {createRestaurant.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Création...</> : "Créer mon restaurant"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/* ─── Menu card ─── */
+const MenuCard = ({ menu, restaurantId }: { menu: Menu; restaurantId: string }) => (
+  <Card className="group hover:border-primary/40 transition-all hover:shadow-sm">
+    <CardContent className="flex items-center justify-between p-4">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <FileText className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <p className="font-medium text-sm">{menu.name}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <Badge variant={menu.status === "published" ? "default" : "secondary"} className="text-[10px] h-4 px-1.5">
+              {menu.status === "published" ? <><Eye className="h-2.5 w-2.5 mr-0.5" /> Publié</> : <><EyeOff className="h-2.5 w-2.5 mr-0.5" /> Brouillon</>}
+            </Badge>
+            {menu.published_at && (
+              <span className="text-[10px] text-muted-foreground">
+                {new Date(menu.published_at).toLocaleDateString("fr-FR")}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <Button size="sm" variant="outline" asChild>
+        <Link to={`/app/restaurants/${restaurantId}/menu`}>
+          <Pencil className="h-3.5 w-3.5 mr-1.5" /> Éditer
+        </Link>
+      </Button>
+    </CardContent>
+  </Card>
+);
+
+/* ─── 3D item row ─── */
+const ModelStatusIcon = ({ status }: { status: string }) => {
+  switch (status) {
+    case "ready":
+      return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+    case "processing":
+    case "pending":
+      return <Clock className="h-4 w-4 text-amber-500 animate-pulse" />;
+    case "failed":
+      return <AlertCircle className="h-4 w-4 text-destructive" />;
+    default:
+      return <Box className="h-4 w-4 text-muted-foreground" />;
+  }
+};
+
+const modelStatusLabel: Record<string, string> = {
+  none: "Pas de modèle",
+  pending: "En attente",
+  processing: "Génération…",
+  ready: "Prêt",
+  failed: "Erreur",
+};
+
+const ItemModelRow = ({ item }: { item: ItemWithDetails }) => {
+  const frName = item.translations.find((t) => t.lang === "fr")?.name || "Sans nom";
+  const status = item.model?.status || "none";
+  const hasMedia = item.media.length > 0;
+
+  return (
+    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors">
+      <div className="flex items-center gap-3">
+        {hasMedia ? (
+          <div className="h-9 w-9 rounded-md overflow-hidden bg-muted">
+            <img
+              src={supabase.storage.from("menu-media").getPublicUrl(item.media[0].storage_path).data.publicUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+        ) : (
+          <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center">
+            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
+        <div>
+          <p className="text-sm font-medium leading-tight">{frName}</p>
+          <p className="text-[10px] text-muted-foreground">{(item.price_cents / 100).toFixed(2)} €</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <ModelStatusIcon status={status} />
+        <span className="text-xs text-muted-foreground">{modelStatusLabel[status]}</span>
+      </div>
+    </div>
+  );
+};
+
+/* ─── Dashboard ─── */
+const Dashboard = () => {
+  const { user, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { data: restaurant, isLoading: restLoading } = useMyRestaurant();
+  const { data: menus, isLoading: menusLoading } = useRestaurantMenus(restaurant?.id);
+  const { data: items, isLoading: itemsLoading } = useRestaurantItems(restaurant?.id);
+  const { data: modelJobs } = useModelJobs(restaurant?.id);
+
+  useEffect(() => {
+    if (!authLoading && !user) navigate("/login");
+  }, [authLoading, user, navigate]);
+
+  const isLoading = authLoading || restLoading;
+  const showOnboarding = !isLoading && !restaurant;
+
+  // 3D stats
+  const totalItems = items?.length || 0;
+  const readyModels = items?.filter((i) => i.model?.status === "ready").length || 0;
+  const pendingModels = items?.filter((i) => i.model?.status === "processing" || i.model?.status === "pending").length || 0;
+  const failedModels = items?.filter((i) => i.model?.status === "failed").length || 0;
+  const noModels = totalItems - readyModels - pendingModels - failedModels;
+  const progress3D = totalItems > 0 ? Math.round((readyModels / totalItems) * 100) : 0;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <Link to="/" className="text-2xl font-bold text-primary">BRUNCH</Link>
+      {/* Onboarding */}
+      <OnboardingDialog
+        open={showOnboarding}
+        onCreated={() => window.location.reload()}
+      />
+
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 py-3 border-b border-border bg-card">
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground hidden sm:block">{user?.email}</span>
-          <Button variant="ghost" size="icon" onClick={() => { signOut(); navigate("/"); }}>
+          <Link to="/" className="text-xl font-black tracking-tight text-primary">BRUNCH</Link>
+          {restaurant && (
+            <>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-sm font-medium">{restaurant.name}</span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {restaurant && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/app/restaurants/${restaurant.id}/qr`}>
+                <QrCode className="h-3.5 w-3.5 mr-1.5" /> QR Code
+              </Link>
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { signOut(); navigate("/"); }}>
             <LogOut className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl">Mes restaurants</h2>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" /> Nouveau restaurant</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Créer un restaurant</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Nom du restaurant</Label>
-                  <Input value={name} onChange={(e) => { setName(e.target.value); setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')); }} required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Ville</Label>
-                  <Input value={city} onChange={(e) => setCity(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Slug (URL)</Label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">/m/</span>
-                    <Input value={slug} onChange={(e) => setSlug(e.target.value)} required />
-                  </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={createRestaurant.isPending}>
-                  {createRestaurant.isPending ? "Création..." : "Créer"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+      {restaurant && (
+        <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
 
-        {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2].map(i => <Skeleton key={i} className="h-20 w-full" />)}
+          {/* ── Stats row ── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold">{menus?.length || 0}</p>
+                <p className="text-xs text-muted-foreground">Menus</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold">{totalItems}</p>
+                <p className="text-xs text-muted-foreground">Plats & Boissons</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-green-600">{readyModels}</p>
+                <p className="text-xs text-muted-foreground">Modèles 3D prêts</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-amber-500">{pendingModels}</p>
+                <p className="text-xs text-muted-foreground">En cours de génération</p>
+              </CardContent>
+            </Card>
           </div>
-        ) : restaurants?.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <UtensilsCrossed className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">Aucun restaurant encore. Créez le premier !</p>
-              <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" /> Créer un restaurant</Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {restaurants?.map((r) => (
-              <Card key={r.id} className="hover:border-primary/50 transition-colors">
-                <CardContent className="flex items-center justify-between py-4 px-6">
-                  <div>
-                    <CardTitle className="text-lg">{r.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{r.city} • /m/{r.slug}</p>
+
+          {/* ── Menus section ── */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Mes menus</h2>
+              {/* For now single menu, but ready for multiple */}
+            </div>
+            {menusLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+              </div>
+            ) : !menus?.length ? (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">Aucun menu créé</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {menus.map((m) => (
+                  <MenuCard key={m.id} menu={m} restaurantId={restaurant.id} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ── 3D Generation section ── */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Box className="h-5 w-5" /> Modèles 3D
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Visualisez l'état de génération 3D de chaque plat
+                </p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            {totalItems > 0 && (
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Progression globale</span>
+                    <span className="text-sm font-bold text-primary">{progress3D}%</span>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/app/restaurants/${r.id}/qr`}><QrCode className="h-4 w-4" /></Link>
-                    </Button>
-                    <Button size="sm" asChild>
-                      <Link to={`/app/restaurants/${r.id}/menu`}><Pencil className="h-4 w-4 mr-1" /> Éditer</Link>
-                    </Button>
+                  <Progress value={progress3D} className="h-2" />
+                  <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
+                    <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-500" /> {readyModels} prêts</span>
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-amber-500" /> {pendingModels} en cours</span>
+                    <span className="flex items-center gap-1"><AlertCircle className="h-3 w-3 text-destructive" /> {failedModels} erreurs</span>
+                    <span className="flex items-center gap-1"><Box className="h-3 w-3" /> {noModels} sans modèle</span>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
-      </main>
+            )}
+
+            {/* Items list */}
+            {itemsLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+              </div>
+            ) : !items?.length ? (
+              <Card>
+                <CardContent className="py-8 text-center">
+                  <Box className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">Ajoutez des plats dans un menu pour commencer la génération 3D</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-2 divide-y divide-border">
+                  {items.map((item) => (
+                    <ItemModelRow key={item.id} item={item} />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </section>
+        </main>
+      )}
     </div>
   );
 };
