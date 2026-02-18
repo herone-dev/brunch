@@ -17,13 +17,14 @@ interface Props {
   onMenuCreated: (menuId: string) => void;
 }
 
-type Step = 'choice' | 'camera' | 'uploading' | 'processing' | 'name-scratch';
+type Step = 'choice' | 'camera' | 'review' | 'uploading' | 'processing' | 'name-scratch';
 
 export function NewMenuDialog({ open, onOpenChange, restaurantId, onMenuCreated }: Props) {
   const [step, setStep] = useState<Step>('choice');
   const [menuName, setMenuName] = useState('');
   const [creating, setCreating] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [processing, setProcessing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,7 +49,8 @@ export function NewMenuDialog({ open, onOpenChange, restaurantId, onMenuCreated 
     if (!open) {
       setStep('choice');
       setMenuName('');
-      setFile(null);
+      setFiles([]);
+      setPreviews(p => { p.forEach(url => URL.revokeObjectURL(url)); return []; });
       setProcessing(false);
       stopCamera();
     }
@@ -83,20 +85,33 @@ export function NewMenuDialog({ open, onOpenChange, restaurantId, onMenuCreated 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
-    canvas.toBlob(async (blob) => {
+    canvas.toBlob((blob) => {
       if (!blob) return;
       const capturedFile = new File([blob], `menu-capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
       stopCamera();
-      setFile(capturedFile);
-      await uploadAndProcess(capturedFile);
+      setFiles(prev => [...prev, capturedFile]);
+      setPreviews(prev => [...prev, URL.createObjectURL(capturedFile)]);
+      setStep('review');
     }, 'image/jpeg', 0.92);
   }, []);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
-    setFile(selected);
-    await uploadAndProcess(selected);
+    setFiles(prev => [...prev, selected]);
+    setPreviews(prev => [...prev, URL.createObjectURL(selected)]);
+    setStep('review');
+  };
+
+  const removePhoto = (index: number) => {
+    setPreviews(prev => { URL.revokeObjectURL(prev[index]); return prev.filter((_, i) => i !== index); });
+    setFiles(prev => prev.filter((_, i) => i !== index));
+    if (files.length <= 1) setStep('choice');
+  };
+
+  const handleProcessAll = async () => {
+    if (files.length === 0) return;
+    await uploadAndProcess(files[0]);
   };
 
   const uploadAndProcess = async (f: File) => {
@@ -347,6 +362,70 @@ export function NewMenuDialog({ open, onOpenChange, restaurantId, onMenuCreated 
                 <Upload className="h-5 w-5" />
               </Button>
             </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+        )}
+
+        {/* ── Review step ── */}
+        {step === 'review' && (
+          <div className="p-6 space-y-5">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { if (files.length === 0) setStep('choice'); else setStep('choice'); }} className="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <DialogTitle>Vos photos ({files.length})</DialogTitle>
+              </div>
+            </DialogHeader>
+
+            <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
+              {previews.map((src, i) => (
+                <div key={i} className="relative rounded-lg overflow-hidden border border-border aspect-[3/4]">
+                  <img src={src} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => removePhoto(i)}
+                    className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover:opacity-90 transition-opacity"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setStep('camera')}
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                {files.length > 0 ? 'Ajouter une photo' : 'Reprendre'}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Importer fichier
+              </Button>
+            </div>
+
+            <Button
+              className="w-full"
+              disabled={files.length === 0}
+              onClick={handleProcessAll}
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Traiter {files.length > 1 ? `les ${files.length} photos` : 'la photo'}
+            </Button>
 
             <input
               ref={fileInputRef}
