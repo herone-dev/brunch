@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MENU_TEMPLATES, type MenuDesign, type AdvancedPageSettings, type IconStyle } from '@/lib/menu-templates';
+import { MENU_TEMPLATES, type MenuDesign, type AdvancedPageSettings, type IconStyle, type LogoPosition } from '@/lib/menu-templates';
 import { Check, Save, Trash2, ChevronDown, ChevronUp, Upload, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -239,7 +239,7 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
           <div className="space-y-1.5">
             <p className="text-[11px] font-medium text-foreground">Éléments à afficher</p>
             <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-              <ToggleRow label="Logo" checked={hfSettings.showLogo ?? false} onChange={v => updateHFSettings(activeHFSection, { showLogo: v })} />
+              <ToggleRow label="Logo" checked={hfSettings.showLogo ?? false} onChange={v => updateHFSettings(activeHFSection, { showLogo: v })} available={!!design.logoUrl} />
               <ToggleRow label="Adresse" checked={hfSettings.showAddress ?? false} onChange={v => updateHFSettings(activeHFSection, { showAddress: v })} available={!!restaurant?.address} />
               <ToggleRow label="Téléphone" checked={hfSettings.showPhone ?? false} onChange={v => updateHFSettings(activeHFSection, { showPhone: v })} available={!!restaurant?.phone} />
               <ToggleRow label="Email" checked={hfSettings.showEmail ?? false} onChange={v => updateHFSettings(activeHFSection, { showEmail: v })} available={!!restaurant?.email} />
@@ -247,6 +247,32 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
               <ToggleRow label="Réseaux" checked={hfSettings.showSocials ?? false} onChange={v => updateHFSettings(activeHFSection, { showSocials: v })} available={!!(restaurant?.instagram || restaurant?.facebook || restaurant?.tiktok)} />
             </div>
           </div>
+
+          {/* Logo position */}
+          {hfSettings.showLogo && design.logoUrl && (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-medium text-foreground">Position du logo</p>
+              <div className="flex rounded-md overflow-hidden border border-border">
+                {([
+                  { id: 'left' as LogoPosition, label: '← Gauche' },
+                  { id: 'center' as LogoPosition, label: '↔ Centre' },
+                  { id: 'right' as LogoPosition, label: '→ Droite' },
+                ]).map(opt => (
+                  <button
+                    key={opt.id}
+                    className={`flex-1 py-1.5 text-[10px] font-medium transition-colors ${
+                      (hfSettings.logoPosition || 'left') === opt.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-card text-muted-foreground hover:bg-muted'
+                    }`}
+                    onClick={() => updateHFSettings(activeHFSection, { logoPosition: opt.id })}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Background image */}
           <div className="space-y-1.5">

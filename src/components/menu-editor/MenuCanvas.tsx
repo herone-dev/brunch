@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { type MenuDesign, type MenuFormat, type AdvancedPageSettings, type IconStyle, type TextSize, TEXT_SIZE_SCALES, getEffectiveStyles } from '@/lib/menu-templates';
+import { type MenuDesign, type MenuFormat, type AdvancedPageSettings, type IconStyle, type LogoPosition, type TextSize, TEXT_SIZE_SCALES, getEffectiveStyles } from '@/lib/menu-templates';
 import { FloatingToolbar, type ElementStyle } from '@/components/menu-editor/FloatingToolbar';
 import { MapPin, Phone, Mail, Globe, Instagram, Facebook } from 'lucide-react';
 import type { CategoryWithItems, ItemWithDetails, Restaurant } from '@/lib/types';
@@ -215,13 +215,18 @@ export function MenuCanvas({
         }}
       >
         {renderBgOverlay(settings)}
-        <div className="relative z-10 flex items-center justify-center gap-3">
-          {settings.showLogo && design.logoUrl && (
+        <div className="relative z-10 flex items-center gap-3" style={{
+          justifyContent: settings.logoPosition === 'right' ? 'flex-end' : settings.logoPosition === 'center' ? 'center' : 'flex-start',
+        }}>
+          {settings.showLogo && design.logoUrl && settings.logoPosition !== 'right' && (
             <img src={design.logoUrl} alt="Logo" className="w-6 h-6 object-contain rounded-sm shrink-0" />
           )}
-          <div className="flex-1 min-w-0">
+          <div className={`${settings.logoPosition === 'center' ? '' : 'flex-1'} min-w-0`}>
             {renderRestaurantInfo(settings, true)}
           </div>
+          {settings.showLogo && design.logoUrl && settings.logoPosition === 'right' && (
+            <img src={design.logoUrl} alt="Logo" className="w-6 h-6 object-contain rounded-sm shrink-0" />
+          )}
         </div>
       </div>
     );
