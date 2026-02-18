@@ -147,21 +147,10 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
         {/* Cover background */}
         <div className="space-y-1.5">
           <Label className="text-[10px] text-muted-foreground">Fond couverture</Label>
-          <div className="grid grid-cols-4 gap-1.5">
-            {GRADIENT_PRESETS.map(g => (
-              <button
-                key={g.value}
-                className={`w-full aspect-square rounded-md border-2 transition-all hover:scale-105 ${
-                  styles.coverBg === g.value && !design.overrides?.coverBgImage ? 'border-primary ring-1 ring-primary' : 'border-border'
-                }`}
-                style={{ background: g.value }}
-                title={g.label}
-                onClick={() => { updateOverride('coverBg', g.value); removeBgImage('cover'); }}
-              />
-            ))}
+          <div className="flex items-center gap-2">
             {/* Image upload slot */}
             {design.overrides?.coverBgImage ? (
-              <div className="relative w-full aspect-square rounded-md border-2 border-primary ring-1 ring-primary overflow-hidden">
+              <div className="relative w-10 h-10 rounded-md border-2 border-primary ring-1 ring-primary overflow-hidden shrink-0">
                 <img src={design.overrides.coverBgImage} alt="" className="w-full h-full object-cover" />
                 <button
                   className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center hover:scale-110 transition-transform"
@@ -173,7 +162,7 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
             ) : (
               <button
                 type="button"
-                className="w-full aspect-square rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all"
+                className="w-10 h-10 rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all shrink-0"
                 onClick={() => coverInputRef.current?.click()}
                 disabled={uploading === 'cover'}
               >
@@ -181,8 +170,7 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
               </button>
             )}
             <input ref={coverInputRef} type="file" accept="image/*" onChange={e => handleBgImageUpload(e, 'cover')} className="hidden" />
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
+            {/* Custom color */}
             <input
               type="color"
               value={extractColor(styles.coverBg)}
@@ -216,21 +204,10 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
         {/* Body background */}
         <div className="space-y-1.5">
           <Label className="text-[10px] text-muted-foreground">Fond du menu</Label>
-          <div className="grid grid-cols-4 gap-1.5">
-            {BG_PRESETS.map(bg => (
-              <button
-                key={bg.value}
-                className={`w-full aspect-square rounded-md border-2 transition-all hover:scale-105 ${
-                  styles.bodyBg === bg.value && !design.overrides?.bodyBgImage ? 'border-primary ring-1 ring-primary' : 'border-border'
-                }`}
-                style={{ backgroundColor: bg.value }}
-                title={bg.label}
-                onClick={() => { updateOverride('bodyBg', bg.value); removeBgImage('body'); }}
-              />
-            ))}
+          <div className="flex items-center gap-2">
             {/* Image upload slot */}
             {design.overrides?.bodyBgImage ? (
-              <div className="relative w-full aspect-square rounded-md border-2 border-primary ring-1 ring-primary overflow-hidden">
+              <div className="relative w-10 h-10 rounded-md border-2 border-primary ring-1 ring-primary overflow-hidden shrink-0">
                 <img src={design.overrides.bodyBgImage} alt="" className="w-full h-full object-cover" />
                 <button
                   className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center hover:scale-110 transition-transform"
@@ -242,7 +219,7 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
             ) : (
               <button
                 type="button"
-                className="w-full aspect-square rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all"
+                className="w-10 h-10 rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all shrink-0"
                 onClick={() => bodyInputRef.current?.click()}
                 disabled={uploading === 'body'}
               >
@@ -250,8 +227,7 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
               </button>
             )}
             <input ref={bodyInputRef} type="file" accept="image/*" onChange={e => handleBgImageUpload(e, 'body')} className="hidden" />
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
+            {/* Custom color */}
             <input
               type="color"
               value={extractColor(styles.bodyBg)}
