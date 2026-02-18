@@ -250,7 +250,7 @@ const MenuEditor = () => {
               />
             </TabsContent>
             <TabsContent value="templates" className="flex-1 overflow-y-auto m-0 p-3">
-              <TemplatePicker design={design} onChange={handleDesignChange} />
+              <TemplatePicker design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId} />
               <div className="mt-4 space-y-2">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                   <Image className="h-3.5 w-3.5" /> Logo
