@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { QrCode, Globe, UtensilsCrossed, Sparkles, Clock, Camera, ArrowRight, ArrowLeft, Star, TrendingUp, TrendingDown, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
@@ -35,7 +35,24 @@ const FEATURES = [
 
 const Landing = () => {
   const [activeFeature, setActiveFeature] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const ActiveIcon = FEATURES[activeFeature].icon;
+
+  // Auto-play: avance automatiquement toutes les 5s
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+    const interval = setInterval(() => {
+      setActiveFeature((prev) => (prev + 1) % FEATURES.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isAutoPlaying]);
+
+  const handleFeatureClick = useCallback((i: number) => {
+    setActiveFeature(i);
+    setIsAutoPlaying(false);
+    // Reprend l'auto-play après 15s d'inactivité
+    setTimeout(() => setIsAutoPlaying(true), 15000);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -152,7 +169,7 @@ const Landing = () => {
                 return (
                   <button
                     key={i}
-                    onClick={() => setActiveFeature(i)}
+                    onClick={() => handleFeatureClick(i)}
                     className={`w-full text-left border-l-2 transition-all duration-300 px-6 py-5 ${
                       isActive
                         ? "border-l-primary bg-primary/5"
