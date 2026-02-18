@@ -66,6 +66,38 @@ export type Database = {
           },
         ]
       }
+      custom_templates: {
+        Row: {
+          created_at: string
+          design_json: Json
+          id: string
+          name: string
+          restaurant_id: string
+        }
+        Insert: {
+          created_at?: string
+          design_json?: Json
+          id?: string
+          name: string
+          restaurant_id: string
+        }
+        Update: {
+          created_at?: string
+          design_json?: Json
+          id?: string
+          name?: string
+          restaurant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_templates_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_categories: {
         Row: {
           created_at: string

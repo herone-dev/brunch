@@ -18,13 +18,11 @@ interface Props {
   restaurantId: string;
 }
 
-type PageSection = 'firstPage' | 'lastPage' | 'header' | 'footer';
+type PageSection = 'firstPage' | 'lastPage';
 
 const SECTION_LABELS: Record<PageSection, { label: string; icon: string }> = {
   firstPage: { label: 'Première page', icon: '📄' },
   lastPage: { label: 'Dernière page', icon: '📃' },
-  header: { label: 'En-tête', icon: '⬆️' },
-  footer: { label: 'Pied de page', icon: '⬇️' },
 };
 
 export function AdvancedDesignPanel({ design, onChange, restaurant, restaurantId }: Props) {
@@ -132,7 +130,7 @@ export function AdvancedDesignPanel({ design, onChange, restaurant, restaurantId
       </div>
 
       {/* Restaurant info toggles */}
-      {(activeSection === 'firstPage' || activeSection === 'lastPage' || activeSection === 'header' || activeSection === 'footer') && (
+      {(activeSection === 'firstPage' || activeSection === 'lastPage') && (
         <div className="space-y-2">
           <p className="text-xs font-medium flex items-center gap-1.5">
             <FileText className="h-3.5 w-3.5" /> Informations affichées
@@ -156,7 +154,7 @@ export function AdvancedDesignPanel({ design, onChange, restaurant, restaurantId
           onChange={e => updateSettings(activeSection, { customText: e.target.value })}
           rows={2}
           className="text-xs min-h-[48px]"
-          placeholder={activeSection === 'footer' ? 'Bon appétit !' : 'Texte libre...'}
+          placeholder={activeSection === 'lastPage' ? 'Bon appétit !' : 'Texte libre...'}
         />
       </div>
     </div>
