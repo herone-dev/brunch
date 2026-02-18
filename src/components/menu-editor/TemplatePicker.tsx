@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MENU_TEMPLATES, type MenuDesign, type AdvancedPageSettings } from '@/lib/menu-templates';
+import { MENU_TEMPLATES, type MenuDesign, type AdvancedPageSettings, type IconStyle } from '@/lib/menu-templates';
 import { Check, Save, Trash2, ChevronDown, ChevronUp, Upload, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -265,6 +265,30 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
                 <input type="file" accept="image/*" onChange={e => handleHFBgUpload(e, activeHFSection)} className="hidden" disabled={uploading} />
               </label>
             )}
+          </div>
+
+          {/* Icon style */}
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium text-foreground">Style des icônes</p>
+            <div className="flex rounded-md overflow-hidden border border-border">
+              {([
+                { id: 'emoji' as IconStyle, label: '😊 Emoji' },
+                { id: 'lucide' as IconStyle, label: '◯ Ligne' },
+                { id: 'none' as IconStyle, label: 'Aucune' },
+              ]).map(opt => (
+                <button
+                  key={opt.id}
+                  className={`flex-1 py-1.5 text-[10px] font-medium transition-colors ${
+                    (hfSettings.iconStyle || 'emoji') === opt.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                  onClick={() => updateHFSettings(activeHFSection, { iconStyle: opt.id })}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Custom text */}

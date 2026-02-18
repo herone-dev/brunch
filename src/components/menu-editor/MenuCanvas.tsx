@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { type MenuDesign, type MenuFormat, type AdvancedPageSettings, getEffectiveStyles } from '@/lib/menu-templates';
+import { type MenuDesign, type MenuFormat, type AdvancedPageSettings, type IconStyle, getEffectiveStyles } from '@/lib/menu-templates';
 import { FloatingToolbar, type ElementStyle } from '@/components/menu-editor/FloatingToolbar';
+import { MapPin, Phone, Mail, Globe, Instagram, Facebook } from 'lucide-react';
 import type { CategoryWithItems, ItemWithDetails, Restaurant } from '@/lib/types';
 
 interface Props {
@@ -119,31 +120,53 @@ export function MenuCanvas({
     );
   };
 
+  const renderIcon = (type: 'address' | 'phone' | 'email' | 'website' | 'instagram' | 'facebook' | 'tiktok', iconStyle: IconStyle, size = 10) => {
+    if (iconStyle === 'none') return null;
+    if (iconStyle === 'lucide') {
+      const iconProps = { size, strokeWidth: 1.5, className: 'shrink-0' };
+      switch (type) {
+        case 'address': return <MapPin {...iconProps} />;
+        case 'phone': return <Phone {...iconProps} />;
+        case 'email': return <Mail {...iconProps} />;
+        case 'website': return <Globe {...iconProps} />;
+        case 'instagram': return <Instagram {...iconProps} />;
+        case 'facebook': return <Facebook {...iconProps} />;
+        case 'tiktok': return <span style={{ fontSize: size }}>♪</span>;
+      }
+    }
+    // emoji
+    const emojis: Record<string, string> = { address: '📍', phone: '📞', email: '✉️', website: '🌐', instagram: '📸', facebook: '👤', tiktok: '🎵' };
+    return <span style={{ fontSize: size - 1 }}>{emojis[type]}</span>;
+  };
+
   const renderRestaurantInfo = (settings?: AdvancedPageSettings, compact = false) => {
     if (!settings || !restaurant) return null;
-    const infos: { icon: string; text: string }[] = [];
-    if (settings.showAddress && restaurant.address) infos.push({ icon: '📍', text: restaurant.address });
-    if (settings.showPhone && restaurant.phone) infos.push({ icon: '📞', text: restaurant.phone });
-    if (settings.showEmail && restaurant.email) infos.push({ icon: '✉️', text: restaurant.email });
-    if (settings.showWebsite && restaurant.website) infos.push({ icon: '🌐', text: restaurant.website });
-    const socials: string[] = [];
+    const iconStyle: IconStyle = settings.iconStyle || 'emoji';
+    const infos: { type: 'address' | 'phone' | 'email' | 'website'; text: string }[] = [];
+    if (settings.showAddress && restaurant.address) infos.push({ type: 'address', text: restaurant.address });
+    if (settings.showPhone && restaurant.phone) infos.push({ type: 'phone', text: restaurant.phone });
+    if (settings.showEmail && restaurant.email) infos.push({ type: 'email', text: restaurant.email });
+    if (settings.showWebsite && restaurant.website) infos.push({ type: 'website', text: restaurant.website });
+    const socialItems: { type: 'instagram' | 'facebook' | 'tiktok'; text: string }[] = [];
     if (settings.showSocials) {
-      if (restaurant.instagram) socials.push(`@${restaurant.instagram}`);
-      if (restaurant.facebook) socials.push(`fb/${restaurant.facebook}`);
-      if (restaurant.tiktok) socials.push(`tiktok/${restaurant.tiktok}`);
+      if (restaurant.instagram) socialItems.push({ type: 'instagram', text: `@${restaurant.instagram}` });
+      if (restaurant.facebook) socialItems.push({ type: 'facebook', text: restaurant.facebook });
+      if (restaurant.tiktok) socialItems.push({ type: 'tiktok', text: restaurant.tiktok });
     }
-    if (!infos.length && !socials.length && !settings.customText) return null;
+    if (!infos.length && !socialItems.length && !settings.customText) return null;
 
     if (compact) {
-      // Compact inline layout for header/footer
-      const allParts = [
-        ...infos.map(i => `${i.icon} ${i.text}`),
-        ...(socials.length ? [socials.join(' · ')] : []),
-      ];
       return (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5" style={{ fontSize: '9px', opacity: 0.75 }}>
-          {allParts.map((p, i) => (
-            <span key={i} className="whitespace-nowrap">{p}</span>
+          {infos.map((info, i) => (
+            <span key={i} className="whitespace-nowrap inline-flex items-center gap-0.5">
+              {renderIcon(info.type, iconStyle, 9)} {info.text}
+            </span>
+          ))}
+          {socialItems.map((s, i) => (
+            <span key={`s-${i}`} className="whitespace-nowrap inline-flex items-center gap-0.5">
+              {renderIcon(s.type, iconStyle, 9)} {s.text}
+            </span>
           ))}
           {settings.customText && <span className="italic">{settings.customText}</span>}
         </div>
@@ -154,11 +177,18 @@ export function MenuCanvas({
       <div className="text-center space-y-1" style={{ fontSize: '10px', opacity: 0.7 }}>
         {infos.map((info, i) => (
           <div key={i} className="flex items-center justify-center gap-1">
-            <span>{info.icon}</span>
-            <span>{info.text}</span>
+            {renderIcon(info.type, iconStyle)} <span>{info.text}</span>
           </div>
         ))}
-        {socials.length > 0 && <div className="flex items-center justify-center gap-2 text-[9px]">{socials.map((s, i) => <span key={i}>{s}</span>)}</div>}
+        {socialItems.length > 0 && (
+          <div className="flex items-center justify-center gap-2 text-[9px]">
+            {socialItems.map((s, i) => (
+              <span key={i} className="inline-flex items-center gap-0.5">
+                {renderIcon(s.type, iconStyle, 9)} {s.text}
+              </span>
+            ))}
+          </div>
+        )}
         {settings.customText && <div className="mt-1 italic text-[9px]">{settings.customText}</div>}
       </div>
     );
