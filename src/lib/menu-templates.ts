@@ -14,6 +14,7 @@ export interface AdvancedPageSettings {
   showEmail?: boolean;
   showWebsite?: boolean;
   showSocials?: boolean;
+  showNavigation?: boolean;
   customText?: string;
   iconStyle?: IconStyle;
 }
