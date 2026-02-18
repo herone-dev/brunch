@@ -24,6 +24,7 @@ import { MenuCanvas } from "@/components/menu-editor/MenuCanvas";
 import { EditorToolbar } from "@/components/menu-editor/EditorToolbar";
 import { CategorySidebar } from "@/components/menu-editor/CategorySidebar";
 import { ItemProperties, CategoryProperties } from "@/components/menu-editor/PropertiesPanel";
+import { Panel3D } from "@/components/menu-editor/Panel3D";
 
 const MenuEditor = () => {
   const { restaurantId } = useParams<{ restaurantId: string }>();
@@ -341,6 +342,9 @@ const MenuEditor = () => {
               <TabsTrigger value="properties" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
                 Propriétés
               </TabsTrigger>
+              <TabsTrigger value="3d" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                3D
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="design" className="flex-1 overflow-y-auto m-0 p-3">
               <EditorToolbar design={design} onChange={handleDesignChange} />
@@ -361,6 +365,11 @@ const MenuEditor = () => {
                 <div className="text-center py-8 text-muted-foreground">
                   <p className="text-xs">Sélectionnez un élément sur le canvas pour modifier ses propriétés</p>
                 </div>
+              )}
+            </TabsContent>
+            <TabsContent value="3d" className="flex-1 overflow-y-auto m-0 p-3">
+              {restaurantId && (
+                <Panel3D categories={menu?.categories || []} restaurantId={restaurantId} />
               )}
             </TabsContent>
           </Tabs>
