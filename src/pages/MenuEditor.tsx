@@ -361,7 +361,7 @@ const MenuEditor = () => {
                 <EditorToolbar design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId} />
               </TabsContent>
               <TabsContent value="advanced" className="flex-1 overflow-y-auto m-0 p-3">
-                <AdvancedDesignPanel design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId || ''} />
+                <AdvancedDesignPanel design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId || ''} onLogoUpload={handleLogoUpload} />
               </TabsContent>
               <TabsContent value="3d" className="flex-1 overflow-y-auto m-0 p-3">
                 {restaurantId && (
