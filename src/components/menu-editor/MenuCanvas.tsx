@@ -119,25 +119,47 @@ export function MenuCanvas({
     );
   };
 
-  const renderRestaurantInfo = (settings?: AdvancedPageSettings) => {
+  const renderRestaurantInfo = (settings?: AdvancedPageSettings, compact = false) => {
     if (!settings || !restaurant) return null;
-    const items: string[] = [];
-    if (settings.showAddress && restaurant.address) items.push(restaurant.address);
-    if (settings.showPhone && restaurant.phone) items.push(`📞 ${restaurant.phone}`);
-    if (settings.showEmail && restaurant.email) items.push(`✉ ${restaurant.email}`);
-    if (settings.showWebsite && restaurant.website) items.push(`🌐 ${restaurant.website}`);
+    const infos: { icon: string; text: string }[] = [];
+    if (settings.showAddress && restaurant.address) infos.push({ icon: '📍', text: restaurant.address });
+    if (settings.showPhone && restaurant.phone) infos.push({ icon: '📞', text: restaurant.phone });
+    if (settings.showEmail && restaurant.email) infos.push({ icon: '✉️', text: restaurant.email });
+    if (settings.showWebsite && restaurant.website) infos.push({ icon: '🌐', text: restaurant.website });
     const socials: string[] = [];
     if (settings.showSocials) {
       if (restaurant.instagram) socials.push(`@${restaurant.instagram}`);
       if (restaurant.facebook) socials.push(`fb/${restaurant.facebook}`);
       if (restaurant.tiktok) socials.push(`tiktok/${restaurant.tiktok}`);
     }
-    if (!items.length && !socials.length && !settings.customText) return null;
+    if (!infos.length && !socials.length && !settings.customText) return null;
+
+    if (compact) {
+      // Compact inline layout for header/footer
+      const allParts = [
+        ...infos.map(i => `${i.icon} ${i.text}`),
+        ...(socials.length ? [socials.join(' · ')] : []),
+      ];
+      return (
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5" style={{ fontSize: '9px', opacity: 0.75 }}>
+          {allParts.map((p, i) => (
+            <span key={i} className="whitespace-nowrap">{p}</span>
+          ))}
+          {settings.customText && <span className="italic">{settings.customText}</span>}
+        </div>
+      );
+    }
+
     return (
-      <div className="text-center space-y-0.5" style={{ fontSize: '10px', opacity: 0.7 }}>
-        {items.map((t, i) => <div key={i}>{t}</div>)}
-        {socials.length > 0 && <div>{socials.join(' • ')}</div>}
-        {settings.customText && <div className="mt-1 italic">{settings.customText}</div>}
+      <div className="text-center space-y-1" style={{ fontSize: '10px', opacity: 0.7 }}>
+        {infos.map((info, i) => (
+          <div key={i} className="flex items-center justify-center gap-1">
+            <span>{info.icon}</span>
+            <span>{info.text}</span>
+          </div>
+        ))}
+        {socials.length > 0 && <div className="flex items-center justify-center gap-2 text-[9px]">{socials.map((s, i) => <span key={i}>{s}</span>)}</div>}
+        {settings.customText && <div className="mt-1 italic text-[9px]">{settings.customText}</div>}
       </div>
     );
   };
@@ -149,14 +171,26 @@ export function MenuCanvas({
       settings.showPhone || settings.showEmail || settings.showWebsite || settings.showSocials || settings.customText;
     if (!hasContent) return null;
 
+    const isHeader = section === 'header';
     return (
-      <div className="relative p-3 text-center" style={{ backgroundColor: s.bodyBg, color: s.bodyTextColor, borderTop: section === 'footer' ? `1px solid ${s.accentColor}22` : undefined, borderBottom: section === 'header' ? `1px solid ${s.accentColor}22` : undefined }}>
+      <div
+        className="relative overflow-hidden"
+        style={{
+          backgroundColor: s.bodyBg,
+          color: s.bodyTextColor,
+          borderTop: !isHeader ? `1px solid ${s.accentColor}15` : undefined,
+          borderBottom: isHeader ? `1px solid ${s.accentColor}15` : undefined,
+          padding: '8px 16px',
+        }}
+      >
         {renderBgOverlay(settings)}
-        <div className="relative z-10">
+        <div className="relative z-10 flex items-center justify-center gap-3">
           {settings.showLogo && design.logoUrl && (
-            <img src={design.logoUrl} alt="Logo" className="w-8 h-8 object-contain mx-auto mb-1 rounded" />
+            <img src={design.logoUrl} alt="Logo" className="w-6 h-6 object-contain rounded-sm shrink-0" />
           )}
-          {renderRestaurantInfo(settings)}
+          <div className="flex-1 min-w-0">
+            {renderRestaurantInfo(settings, true)}
+          </div>
         </div>
       </div>
     );

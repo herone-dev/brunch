@@ -192,7 +192,7 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
 
       {/* Header / Footer customization */}
       <button
-        className="w-full flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+        className="w-full flex items-center justify-between py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
         onClick={() => setHfOpen(!hfOpen)}
       >
         <span>En-tête & Pied de page</span>
@@ -200,89 +200,82 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
       </button>
 
       {hfOpen && (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-1.5">
-            <Button
-              size="sm"
-              variant={activeHFSection === 'header' ? 'default' : 'outline'}
-              className="text-[10px] h-8"
-              onClick={() => setActiveHFSection('header')}
-            >
-              ⬆️ En-tête
-            </Button>
-            <Button
-              size="sm"
-              variant={activeHFSection === 'footer' ? 'default' : 'outline'}
-              className="text-[10px] h-8"
-              onClick={() => setActiveHFSection('footer')}
-            >
-              ⬇️ Pied de page
-            </Button>
+        <div className="space-y-4 rounded-lg border border-border p-3 bg-muted/30">
+          {/* Tab selector */}
+          <div className="flex rounded-md overflow-hidden border border-border">
+            {(['header', 'footer'] as HeaderFooterSection[]).map(s => (
+              <button
+                key={s}
+                className={`flex-1 py-1.5 text-[11px] font-medium transition-colors ${
+                  activeHFSection === s
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-card text-muted-foreground hover:bg-muted'
+                }`}
+                onClick={() => setActiveHFSection(s)}
+              >
+                {s === 'header' ? '↑ En-tête' : '↓ Pied de page'}
+              </button>
+            ))}
+          </div>
+
+          {/* Info toggles - compact grid */}
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium text-foreground">Éléments à afficher</p>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+              <ToggleRow label="Logo" checked={hfSettings.showLogo ?? false} onChange={v => updateHFSettings(activeHFSection, { showLogo: v })} />
+              <ToggleRow label="Adresse" checked={hfSettings.showAddress ?? false} onChange={v => updateHFSettings(activeHFSection, { showAddress: v })} available={!!restaurant?.address} />
+              <ToggleRow label="Téléphone" checked={hfSettings.showPhone ?? false} onChange={v => updateHFSettings(activeHFSection, { showPhone: v })} available={!!restaurant?.phone} />
+              <ToggleRow label="Email" checked={hfSettings.showEmail ?? false} onChange={v => updateHFSettings(activeHFSection, { showEmail: v })} available={!!restaurant?.email} />
+              <ToggleRow label="Site web" checked={hfSettings.showWebsite ?? false} onChange={v => updateHFSettings(activeHFSection, { showWebsite: v })} available={!!restaurant?.website} />
+              <ToggleRow label="Réseaux" checked={hfSettings.showSocials ?? false} onChange={v => updateHFSettings(activeHFSection, { showSocials: v })} available={!!(restaurant?.instagram || restaurant?.facebook || restaurant?.tiktok)} />
+            </div>
           </div>
 
           {/* Background image */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium flex items-center gap-1.5">
-              <Image className="h-3.5 w-3.5" /> Image de fond
-            </p>
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium text-foreground">Image de fond</p>
             {hfSettings.backgroundImageUrl ? (
               <div className="space-y-2">
-                <div className="relative rounded-lg overflow-hidden border border-border">
-                  <img src={hfSettings.backgroundImageUrl} alt="Fond" className="w-full h-16 object-cover" />
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="absolute top-1 right-1 h-6 text-[10px] px-2"
+                <div className="relative rounded-md overflow-hidden border border-border h-14">
+                  <img src={hfSettings.backgroundImageUrl} alt="Fond" className="w-full h-full object-cover" />
+                  <button
+                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-[10px] hover:scale-110 transition-transform"
                     onClick={() => updateHFSettings(activeHFSection, { backgroundImageUrl: undefined })}
                   >
                     ✕
-                  </Button>
+                  </button>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] text-muted-foreground">
-                    Opacité ({Math.round((hfSettings.backgroundOpacity ?? 0.3) * 100)}%)
-                  </Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">Opacité</span>
                   <Slider
                     value={[hfSettings.backgroundOpacity ?? 0.3]}
                     onValueChange={([v]) => updateHFSettings(activeHFSection, { backgroundOpacity: v })}
                     min={0.05} max={1} step={0.05}
-                    className="w-full"
+                    className="flex-1"
                   />
+                  <span className="text-[10px] text-muted-foreground w-7 text-right">{Math.round((hfSettings.backgroundOpacity ?? 0.3) * 100)}%</span>
                 </div>
               </div>
             ) : (
-              <label className="flex flex-col items-center justify-center p-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
-                <Upload className="h-4 w-4 text-muted-foreground mb-1" />
+              <label className="flex items-center gap-2 p-2 border border-dashed border-border rounded-md cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all">
+                <Upload className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <span className="text-[10px] text-muted-foreground">
-                  {uploading ? 'Upload...' : 'Ajouter une image'}
+                  {uploading ? 'Upload...' : 'Ajouter une image de fond'}
                 </span>
                 <input type="file" accept="image/*" onChange={e => handleHFBgUpload(e, activeHFSection)} className="hidden" disabled={uploading} />
               </label>
             )}
           </div>
 
-          {/* Info toggles */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium">Informations affichées</p>
-            <div className="space-y-1.5">
-              <ToggleRow label="Logo" checked={hfSettings.showLogo ?? false} onChange={v => updateHFSettings(activeHFSection, { showLogo: v })} />
-              <ToggleRow label="Adresse" checked={hfSettings.showAddress ?? false} onChange={v => updateHFSettings(activeHFSection, { showAddress: v })} available={!!restaurant?.address} />
-              <ToggleRow label="Téléphone" checked={hfSettings.showPhone ?? false} onChange={v => updateHFSettings(activeHFSection, { showPhone: v })} available={!!restaurant?.phone} />
-              <ToggleRow label="Email" checked={hfSettings.showEmail ?? false} onChange={v => updateHFSettings(activeHFSection, { showEmail: v })} available={!!restaurant?.email} />
-              <ToggleRow label="Site web" checked={hfSettings.showWebsite ?? false} onChange={v => updateHFSettings(activeHFSection, { showWebsite: v })} available={!!restaurant?.website} />
-              <ToggleRow label="Réseaux sociaux" checked={hfSettings.showSocials ?? false} onChange={v => updateHFSettings(activeHFSection, { showSocials: v })} available={!!(restaurant?.instagram || restaurant?.facebook || restaurant?.tiktok)} />
-            </div>
-          </div>
-
           {/* Custom text */}
           <div className="space-y-1.5">
-            <Label className="text-[10px] text-muted-foreground">Texte personnalisé</Label>
+            <p className="text-[11px] font-medium text-foreground">Texte personnalisé</p>
             <Textarea
               value={hfSettings.customText || ''}
               onChange={e => updateHFSettings(activeHFSection, { customText: e.target.value })}
               rows={2}
-              className="text-xs min-h-[48px]"
-              placeholder={activeHFSection === 'footer' ? 'Bon appétit !' : 'Bienvenue...'}
+              className="text-xs min-h-[40px] resize-none"
+              placeholder={activeHFSection === 'footer' ? 'Bon appétit !' : 'Bienvenue chez nous...'}
             />
           </div>
         </div>
@@ -295,9 +288,9 @@ function ToggleRow({ label, checked, onChange, available = true }: {
   label: string; checked: boolean; onChange: (v: boolean) => void; available?: boolean;
 }) {
   return (
-    <div className={`flex items-center justify-between py-0.5 ${!available ? 'opacity-40' : ''}`}>
-      <Label className="text-[10px]">{label}{!available && ' (non renseigné)'}</Label>
-      <Switch checked={checked && available} onCheckedChange={onChange} disabled={!available} className="scale-75" />
+    <div className={`flex items-center justify-between py-0.5 ${!available ? 'opacity-30 pointer-events-none' : ''}`}>
+      <Label className="text-[10px] leading-none cursor-pointer">{label}</Label>
+      <Switch checked={checked && available} onCheckedChange={onChange} disabled={!available} className="scale-[0.65]" />
     </div>
   );
 }
