@@ -1,10 +1,42 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { QrCode, Globe, UtensilsCrossed, Sparkles, Clock, Camera, ArrowRight, Star, TrendingUp, TrendingDown, ShoppingCart } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import heroPhones from "@/assets/hero-phones.png";
 
+const FEATURES = [
+  {
+    icon: Globe,
+    title: "Traduction instantanée",
+    desc: "Traduisez votre menu en plusieurs langues sans effort et sans frais ! Français, anglais, espagnol, arabe et plus encore… Traduisez automatiquement votre carte en quelques clics.",
+  },
+  {
+    icon: Sparkles,
+    title: "Visualisation 3D & AR",
+    desc: "Vos clients peuvent visualiser les plats en 3D directement depuis leur téléphone. Une expérience immersive unique qui fait la différence et augmente les commandes.",
+  },
+  {
+    icon: Clock,
+    title: "Mise à jour en temps réel",
+    desc: "Un changement de dernière minute sur votre menu ? Pas de stress ! Ajoutez un nouveau produit, modifiez son prix, masquez temporairement un plat en rupture… Tout est instantané.",
+  },
+  {
+    icon: Camera,
+    title: "Importation photo intelligente",
+    desc: "Prenez en photo votre carte papier existante et notre intelligence artificielle la structure automatiquement. Catégories, plats, prix, descriptions : tout est reconnu et organisé pour vous.",
+  },
+  {
+    icon: QrCode,
+    title: "QR Code personnalisé",
+    desc: "Générez un QR code unique aux couleurs de votre restaurant. Imprimez-le et posez-le sur vos tables. Vos clients scannent et découvrent votre carte instantanément.",
+  },
+];
+
 const Landing = () => {
+  const [activeFeature, setActiveFeature] = useState(0);
+  const ActiveIcon = FEATURES[activeFeature].icon;
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
@@ -104,56 +136,70 @@ const Landing = () => {
           </div>
         </section>
 
-        {/* Features */}
+        {/* Features - Accordion Carousel */}
         <section id="features" className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl md:text-4xl text-center mb-16">Des fonctionnalités pour vos besoins</h2>
+          <p className="text-center text-sm font-medium text-accent mb-2">🔧 Fonctionnalités</p>
+          <h2 className="text-3xl md:text-4xl text-center mb-4">Ce que BRUNCH fait pour vous</h2>
+          <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
+            Tout ce dont vous avez besoin pour digitaliser votre carte et offrir une expérience moderne à vos clients.
+          </p>
 
-          <div className="space-y-20">
-            {[
-              {
-                icon: Globe,
-                title: "Traduction instantanée",
-                desc: "Traduisez votre menu en plusieurs langues sans effort et sans frais ! Français, anglais, espagnol, arabe et plus encore… Traduisez automatiquement votre carte en quelques clics.",
-                reverse: false,
-              },
-              {
-                icon: Sparkles,
-                title: "Visualisation 3D & AR",
-                desc: "Vos clients peuvent visualiser les plats en 3D directement depuis leur téléphone. Une expérience immersive unique qui fait la différence et augmente les commandes.",
-                reverse: true,
-              },
-              {
-                icon: Clock,
-                title: "Mise à jour en temps réel",
-                desc: "Un changement de dernière minute sur votre menu ? Pas de stress ! Ajoutez un nouveau produit, modifiez son prix, masquez temporairement un plat en rupture… Tout est instantané, même en plein service.",
-                reverse: false,
-              },
-              {
-                icon: Camera,
-                title: "Importation photo intelligente",
-                desc: "Prenez en photo votre carte papier existante et notre intelligence artificielle la structure automatiquement. Catégories, plats, prix, descriptions : tout est reconnu et organisé pour vous.",
-                reverse: true,
-              },
-            ].map((feature, i) => (
-              <div
-                key={i}
-                className={`flex flex-col ${feature.reverse ? "md:flex-row-reverse" : "md:flex-row"} items-center gap-10`}
-              >
-                <div className="flex-1 space-y-4">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-primary text-sm font-medium">
-                    <feature.icon className="h-4 w-4" />
-                    {feature.title}
-                  </div>
-                  <h3 className="text-2xl md:text-3xl">{feature.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">{feature.desc}</p>
-                </div>
-                <div className="flex-1 flex justify-center">
-                  <div className="w-64 h-64 rounded-2xl bg-muted flex items-center justify-center">
-                    <feature.icon className="h-20 w-20 text-primary/30" />
-                  </div>
-                </div>
+          <div className="grid md:grid-cols-2 gap-10 items-start">
+            {/* Left: Accordion steps */}
+            <div className="space-y-0">
+              {FEATURES.map((feature, i) => {
+                const isActive = activeFeature === i;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setActiveFeature(i)}
+                    className={`w-full text-left border-l-2 transition-all duration-300 px-6 py-5 ${
+                      isActive
+                        ? "border-l-primary bg-primary/5"
+                        : "border-l-border hover:border-l-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-bold tabular-nums ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                        0{i + 1}
+                      </span>
+                      <span className={`font-semibold ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                        {feature.title}
+                      </span>
+                    </div>
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ${
+                        isActive ? "max-h-40 opacity-100 mt-3" : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <p className="text-sm text-muted-foreground leading-relaxed pl-8">
+                        {feature.desc}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Right: Visual */}
+            <div className="flex items-center justify-center sticky top-32">
+              <div className="w-full aspect-square max-w-md rounded-2xl bg-muted border border-border flex flex-col items-center justify-center gap-4 p-8 transition-all duration-500">
+                <ActiveIcon className="h-20 w-20 text-primary/40" />
+                <p className="text-sm font-medium text-primary">{FEATURES[activeFeature].title}</p>
+                <p className="text-xs text-center text-muted-foreground max-w-xs">
+                  Étape 0{activeFeature + 1} de notre solution
+                </p>
               </div>
-            ))}
+            </div>
+          </div>
+
+          <div className="text-center mt-12">
+            <Button size="lg" asChild>
+              <Link to="/signup">
+                Commencer maintenant
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </section>
 
