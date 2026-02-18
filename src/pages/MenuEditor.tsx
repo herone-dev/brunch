@@ -26,7 +26,7 @@ import { EditorToolbar } from "@/components/menu-editor/EditorToolbar";
 import { CategorySidebar } from "@/components/menu-editor/CategorySidebar";
 import { ItemProperties, CategoryProperties } from "@/components/menu-editor/PropertiesPanel";
 import { Panel3D } from "@/components/menu-editor/Panel3D";
-import { AdvancedDesignPanel } from "@/components/menu-editor/AdvancedDesignPanel";
+
 
 const MenuEditor = () => {
   const { restaurantId } = useParams<{ restaurantId: string }>();
@@ -350,18 +350,12 @@ const MenuEditor = () => {
                 <TabsTrigger value="design" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   Design
                 </TabsTrigger>
-                <TabsTrigger value="advanced" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                  Avancé
-                </TabsTrigger>
                 <TabsTrigger value="3d" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
                   3D
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="design" className="flex-1 overflow-y-auto m-0 p-3">
                 <EditorToolbar design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId} />
-              </TabsContent>
-              <TabsContent value="advanced" className="flex-1 overflow-y-auto m-0 p-3">
-                <AdvancedDesignPanel design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId || ''} onLogoUpload={handleLogoUpload} />
               </TabsContent>
               <TabsContent value="3d" className="flex-1 overflow-y-auto m-0 p-3">
                 {restaurantId && (
