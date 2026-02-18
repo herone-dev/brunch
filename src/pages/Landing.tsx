@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { QrCode, Globe, UtensilsCrossed, Sparkles, Clock, Camera, ArrowRight, ArrowLeft, Star, TrendingUp, TrendingDown, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
+import PricingSection from "@/components/landing/PricingSection";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import heroPhones from "@/assets/hero-phones.png";
 
@@ -221,21 +222,7 @@ const Landing = () => {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="bg-card border-y border-border">
-          <div className="max-w-4xl mx-auto px-6 py-20 text-center space-y-8">
-            <h2 className="text-3xl md:text-4xl">Et l'addition s'il vous plaît ?</h2>
-            <div className="inline-block rounded-2xl border-2 border-primary bg-background p-8 md:p-12 space-y-4">
-              <p className="text-5xl md:text-6xl font-bold text-primary">100% Gratuit</p>
-              <p className="text-lg text-muted-foreground">et sans engagement</p>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Fini les dépenses liées à l'impression de vos cartes ! Création du menu, QR code, mises à jour illimitées : tout est inclus gratuitement.
-              </p>
-              <Button size="lg" className="mt-4" asChild>
-                <Link to="/signup">Commencer maintenant</Link>
-              </Button>
-            </div>
-          </div>
-        </section>
+        <PricingSection />
 
         {/* Testimonials */}
         <section className="max-w-6xl mx-auto px-6 py-20">
