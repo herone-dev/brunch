@@ -217,18 +217,10 @@ export function MenuCanvas({
         }}
       >
         {renderBgOverlay(settings)}
-        <div className="relative z-10 flex items-center gap-3" style={{
-          justifyContent: (design.logoPosition || 'center') === 'right' ? 'flex-end' : (design.logoPosition || 'center') === 'center' ? 'center' : 'flex-start',
-        }}>
-          {settings.showLogo && design.logoUrl && (design.logoPosition || 'center') !== 'right' && (
-            <img src={design.logoUrl} alt="Logo" className="w-6 h-6 object-contain rounded-sm shrink-0" />
-          )}
-          <div className={`${(design.logoPosition || 'center') === 'center' ? '' : 'flex-1'} min-w-0`}>
+        <div className="relative z-10 flex items-center justify-center gap-3">
+          <div className="min-w-0">
             {renderRestaurantInfo(settings, true)}
           </div>
-          {settings.showLogo && design.logoUrl && (design.logoPosition || 'center') === 'right' && (
-            <img src={design.logoUrl} alt="Logo" className="w-6 h-6 object-contain rounded-sm shrink-0" />
-          )}
         </div>
       </div>
     );
