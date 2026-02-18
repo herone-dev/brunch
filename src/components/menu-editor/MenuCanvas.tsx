@@ -412,9 +412,6 @@ export function MenuCanvas({
         {defaultFooter()}
         {renderLastPage()}
       </div>
-      <div className="text-center mt-2">
-        <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{formatSize.label}</span>
-      </div>
     </>
   );
 }
