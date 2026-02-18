@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -15,8 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Eye, EyeOff, Upload, Image, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Upload, Image, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X, Layers, Palette } from "lucide-react";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { CategoryWithItems, ItemWithDetails, Restaurant } from "@/lib/types";
 import { type MenuDesign, DEFAULT_DESIGN } from "@/lib/menu-templates";
 import { TemplatePicker } from "@/components/menu-editor/TemplatePicker";
@@ -48,8 +49,15 @@ const MenuEditor = () => {
   const [itemAllergens, setItemAllergens] = useState("");
   const [previewLang, setPreviewLang] = useState<string>('fr');
   const [leftTab, setLeftTab] = useState<string>('structure');
-  const [leftOpen, setLeftOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const [leftOpen, setLeftOpen] = useState(!isMobile);
+  const [rightOpen, setRightOpen] = useState(!isMobile);
+
+  // Close panels when switching to mobile
+  useEffect(() => {
+    if (isMobile) { setLeftOpen(false); setRightOpen(false); }
+    else { setLeftOpen(true); setRightOpen(true); }
+  }, [isMobile]);
 
   // Design state
   const [design, setDesign] = useState<MenuDesign>(DEFAULT_DESIGN);
@@ -172,24 +180,24 @@ const MenuEditor = () => {
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Top bar */}
-      <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0 h-12">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+      <header className="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-border bg-card shrink-0 h-12">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" asChild>
             <Link to="/app"><ArrowLeft className="h-4 w-4" /></Link>
           </Button>
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-bold">{restaurant?.name || 'Éditeur'}</h1>
-            <Badge variant={menu?.status === 'published' ? 'default' : 'secondary'} className="text-[10px]">
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-xs sm:text-sm font-bold truncate">{restaurant?.name || 'Éditeur'}</h1>
+            <Badge variant={menu?.status === 'published' ? 'default' : 'secondary'} className="text-[10px] shrink-0">
               {menu?.status === 'published' ? 'Publié' : 'Brouillon'}
             </Badge>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <div className="flex items-center border rounded-md overflow-hidden">
             {(restaurant?.supported_langs || ['fr', 'en']).map(lang => (
               <button
                 key={lang}
-                className={`px-2.5 py-1 text-[10px] font-medium uppercase transition-colors ${
+                className={`px-2 sm:px-2.5 py-1 text-[10px] font-medium uppercase transition-colors ${
                   previewLang === lang ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted'
                 }`}
                 onClick={() => setPreviewLang(lang)}
@@ -200,11 +208,11 @@ const MenuEditor = () => {
           </div>
           {menu && menu.status === 'draft' ? (
             <Button size="sm" className="h-8 text-xs" onClick={() => publishMenu.mutate(menu.id)} disabled={publishMenu.isPending}>
-              <Eye className="h-3.5 w-3.5 mr-1" /> Publier
+              <Eye className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Publier</span>
             </Button>
           ) : menu ? (
             <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => unpublishMenu.mutate(menu.id)} disabled={unpublishMenu.isPending}>
-              <EyeOff className="h-3.5 w-3.5 mr-1" /> Dépublier
+              <EyeOff className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Dépublier</span>
             </Button>
           ) : null}
         </div>
@@ -212,68 +220,72 @@ const MenuEditor = () => {
 
       {/* 3-panel editor */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Left collapse toggle */}
-        {!leftOpen && (
+        {/* Left collapse toggle - desktop only */}
+        {!isMobile && !leftOpen && (
           <Button variant="ghost" size="icon" className="absolute left-1 top-1 z-10 h-7 w-7" onClick={() => setLeftOpen(true)}>
             <PanelLeftOpen className="h-4 w-4" />
           </Button>
         )}
 
-        {/* LEFT PANEL: Structure + Templates */}
+        {/* LEFT PANEL: Structure + Templates — overlay on mobile, sidebar on desktop */}
         {leftOpen && (
-        <div className="w-64 border-r border-border bg-card overflow-y-auto shrink-0 flex flex-col">
-          <div className="flex items-center justify-end p-1 border-b border-border shrink-0">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLeftOpen(false)}>
-              <PanelLeftClose className="h-3.5 w-3.5" />
-            </Button>
+        <>
+          {isMobile && <div className="absolute inset-0 z-20 bg-black/40" onClick={() => setLeftOpen(false)} />}
+          <div className={`${isMobile ? 'absolute left-0 top-0 bottom-0 z-30 w-72 max-w-[85vw]' : 'w-64 shrink-0'} border-r border-border bg-card overflow-y-auto flex flex-col`}>
+            <div className="flex items-center justify-between p-1.5 border-b border-border shrink-0">
+              <span className="text-xs font-semibold text-muted-foreground pl-2">{leftTab === 'structure' ? 'Structure' : 'Templates'}</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setLeftOpen(false)}>
+                {isMobile ? <X className="h-4 w-4" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+            <Tabs value={leftTab} onValueChange={setLeftTab} className="flex flex-col flex-1">
+              <TabsList className="w-full rounded-none border-b border-border h-9 bg-transparent shrink-0">
+                <TabsTrigger value="structure" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                  Structure
+                </TabsTrigger>
+                <TabsTrigger value="templates" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                  Templates
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="structure" className="flex-1 overflow-y-auto m-0">
+                <CategorySidebar
+                  categories={menu?.categories || []}
+                  selectedCategoryId={selectedCategory?.id}
+                  selectedItemId={selectedItem?.id}
+                  onSelectCategory={(cat) => { setSelectedCategory(cat); setSelectedItem(null); }}
+                  onSelectItem={(item) => setSelectedItem(item)}
+                  onAddCategory={() => setAddCatOpen(true)}
+                  onAddItem={() => setAddItemOpen(true)}
+                  onDeleteCategory={(id) => { deleteCategory.mutate(id); toast.success("Supprimé"); }}
+                  onDeleteItem={(id) => { deleteItem.mutate(id); setSelectedItem(null); toast.success("Supprimé"); }}
+                />
+              </TabsContent>
+              <TabsContent value="templates" className="flex-1 overflow-y-auto m-0 p-3">
+                <TemplatePicker design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId} />
+                <div className="mt-4 space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Image className="h-3.5 w-3.5" /> Logo
+                  </h4>
+                  <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
+                    {design.logoUrl ? (
+                      <img src={design.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded" />
+                    ) : (
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <span className="text-[10px] text-muted-foreground">
+                      {design.logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
+                    </span>
+                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                  </label>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
-          <Tabs value={leftTab} onValueChange={setLeftTab} className="flex flex-col flex-1">
-            <TabsList className="w-full rounded-none border-b border-border h-9 bg-transparent shrink-0">
-              <TabsTrigger value="structure" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                Structure
-              </TabsTrigger>
-              <TabsTrigger value="templates" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                Templates
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="structure" className="flex-1 overflow-y-auto m-0">
-              <CategorySidebar
-                categories={menu?.categories || []}
-                selectedCategoryId={selectedCategory?.id}
-                selectedItemId={selectedItem?.id}
-                onSelectCategory={(cat) => { setSelectedCategory(cat); setSelectedItem(null); }}
-                onSelectItem={(item) => setSelectedItem(item)}
-                onAddCategory={() => setAddCatOpen(true)}
-                onAddItem={() => setAddItemOpen(true)}
-                onDeleteCategory={(id) => { deleteCategory.mutate(id); toast.success("Supprimé"); }}
-                onDeleteItem={(id) => { deleteItem.mutate(id); setSelectedItem(null); toast.success("Supprimé"); }}
-              />
-            </TabsContent>
-            <TabsContent value="templates" className="flex-1 overflow-y-auto m-0 p-3">
-              <TemplatePicker design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId} />
-              <div className="mt-4 space-y-2">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Image className="h-3.5 w-3.5" /> Logo
-                </h4>
-                <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
-                  {design.logoUrl ? (
-                    <img src={design.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded" />
-                  ) : (
-                    <Upload className="h-5 w-5 text-muted-foreground" />
-                  )}
-                  <span className="text-[10px] text-muted-foreground">
-                    {design.logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
-                  </span>
-                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                </label>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+        </>
         )}
 
         {/* CENTER: Canvas Preview */}
-        <div className="flex-1 overflow-y-auto bg-muted/30 flex items-start justify-center p-6">
+        <div className="flex-1 overflow-y-auto bg-muted/30 flex items-start justify-center p-3 sm:p-6 pb-16 sm:pb-6">
           <MenuCanvas
             restaurant={restaurant}
             categories={menu?.categories || []}
@@ -283,12 +295,23 @@ const MenuEditor = () => {
             selectedItemId={selectedItem?.id}
             onSelectCategory={(id) => {
               const cat = menu?.categories.find(c => c.id === id);
-              if (cat) { setSelectedCategory(cat); setSelectedItem(null); }
+              if (cat) {
+                setSelectedCategory(cat);
+                setSelectedItem(null);
+                setLeftTab('structure');
+                if (!isMobile) setLeftOpen(true);
+              }
             }}
             onSelectItem={(id) => {
               for (const cat of menu?.categories || []) {
                 const item = cat.items.find(i => i.id === id);
-                if (item) { setSelectedCategory(cat); setSelectedItem(item); break; }
+                if (item) {
+                  setSelectedCategory(cat);
+                  setSelectedItem(item);
+                  setLeftTab('structure');
+                  if (!isMobile) setLeftOpen(true);
+                  break;
+                }
               }
             }}
             onDesignChange={handleDesignChange}
@@ -320,48 +343,70 @@ const MenuEditor = () => {
           />
         </div>
 
-        {/* Right collapse toggle */}
-        {!rightOpen && (
+        {/* Right collapse toggle - desktop only */}
+        {!isMobile && !rightOpen && (
           <Button variant="ghost" size="icon" className="absolute right-1 top-1 z-10 h-7 w-7" onClick={() => setRightOpen(true)}>
             <PanelRightOpen className="h-4 w-4" />
           </Button>
         )}
 
-        {/* RIGHT PANEL: Design + Properties */}
+        {/* RIGHT PANEL: Design + Properties — overlay on mobile, sidebar on desktop */}
         {rightOpen && (
-        <div className="w-64 border-l border-border bg-card overflow-y-auto shrink-0 flex flex-col">
-          <div className="flex items-center justify-start p-1 border-b border-border shrink-0">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRightOpen(false)}>
-              <PanelRightClose className="h-3.5 w-3.5" />
-            </Button>
+        <>
+          {isMobile && <div className="absolute inset-0 z-20 bg-black/40" onClick={() => setRightOpen(false)} />}
+          <div className={`${isMobile ? 'absolute right-0 top-0 bottom-0 z-30 w-72 max-w-[85vw]' : 'w-64 shrink-0'} border-l border-border bg-card overflow-y-auto flex flex-col`}>
+            <div className="flex items-center justify-between p-1.5 border-b border-border shrink-0">
+              <span className="text-xs font-semibold text-muted-foreground pl-2">Design</span>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRightOpen(false)}>
+                {isMobile ? <X className="h-4 w-4" /> : <PanelRightClose className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+            <Tabs defaultValue="design" className="flex flex-col flex-1">
+              <TabsList className="w-full rounded-none border-b border-border h-9 bg-transparent shrink-0">
+                <TabsTrigger value="design" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                  Design
+                </TabsTrigger>
+                <TabsTrigger value="advanced" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                  Avancé
+                </TabsTrigger>
+                <TabsTrigger value="3d" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
+                  3D
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="design" className="flex-1 overflow-y-auto m-0 p-3">
+                <EditorToolbar design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId} />
+              </TabsContent>
+              <TabsContent value="advanced" className="flex-1 overflow-y-auto m-0 p-3">
+                <AdvancedDesignPanel design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId || ''} />
+              </TabsContent>
+              <TabsContent value="3d" className="flex-1 overflow-y-auto m-0 p-3">
+                {restaurantId && (
+                  <Panel3D categories={menu?.categories || []} restaurantId={restaurantId} />
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
-          <Tabs defaultValue="design" className="flex flex-col flex-1">
-            <TabsList className="w-full rounded-none border-b border-border h-9 bg-transparent shrink-0">
-              <TabsTrigger value="design" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                Design
-              </TabsTrigger>
-              <TabsTrigger value="advanced" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                Avancé
-              </TabsTrigger>
-              <TabsTrigger value="3d" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary">
-                3D
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="design" className="flex-1 overflow-y-auto m-0 p-3">
-              <EditorToolbar design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId} />
-            </TabsContent>
-            <TabsContent value="advanced" className="flex-1 overflow-y-auto m-0 p-3">
-              <AdvancedDesignPanel design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId || ''} />
-            </TabsContent>
-            <TabsContent value="3d" className="flex-1 overflow-y-auto m-0 p-3">
-              {restaurantId && (
-                <Panel3D categories={menu?.categories || []} restaurantId={restaurantId} />
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
+        </>
         )}
       </div>
+
+      {/* Mobile bottom toolbar */}
+      {isMobile && (
+        <div className="shrink-0 flex items-center justify-around border-t border-border bg-card h-12 px-2">
+          <Button variant="ghost" size="sm" className="flex-1 h-10 text-xs flex-col gap-0.5" onClick={() => { setLeftTab('structure'); setLeftOpen(true); setRightOpen(false); }}>
+            <Layers className="h-4 w-4" />
+            <span>Structure</span>
+          </Button>
+          <Button variant="ghost" size="sm" className="flex-1 h-10 text-xs flex-col gap-0.5" onClick={() => { setLeftTab('templates'); setLeftOpen(true); setRightOpen(false); }}>
+            <Image className="h-4 w-4" />
+            <span>Templates</span>
+          </Button>
+          <Button variant="ghost" size="sm" className="flex-1 h-10 text-xs flex-col gap-0.5" onClick={() => { setRightOpen(true); setLeftOpen(false); }}>
+            <Palette className="h-4 w-4" />
+            <span>Design</span>
+          </Button>
+        </div>
+      )}
 
       {/* Add Category Dialog */}
       <Dialog open={addCatOpen} onOpenChange={setAddCatOpen}>
