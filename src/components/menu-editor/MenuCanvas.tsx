@@ -252,7 +252,12 @@ export function MenuCanvas({
           }} />
         )}
         {hasAdvanced && renderBgOverlay(firstPage)}
-        <div className="relative z-10">
+        <div className="relative z-10" style={{
+          display: 'flex', flexDirection: 'column',
+          alignItems: hasAdvanced && firstPage?.logoPosition === 'left' ? 'flex-start'
+            : hasAdvanced && firstPage?.logoPosition === 'right' ? 'flex-end'
+            : 'center',
+        }}>
           {(hasAdvanced ? firstPage?.showLogo !== false : true) && design.logoUrl && (
             <img src={design.logoUrl} alt="Logo" className="w-16 h-16 object-contain mb-3 rounded-lg cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" />
           )}
@@ -285,9 +290,14 @@ export function MenuCanvas({
     return (
       <div className="relative p-8 text-center min-h-[160px] flex flex-col items-center justify-center" style={{ background: s.coverBg, color: s.coverTextColor }}>
         {renderBgOverlay(lastPage)}
-        <div className="relative z-10 space-y-2">
+        <div className="relative z-10 space-y-2" style={{
+          display: 'flex', flexDirection: 'column',
+          alignItems: lastPage.logoPosition === 'left' ? 'flex-start'
+            : lastPage.logoPosition === 'right' ? 'flex-end'
+            : 'center',
+        }}>
           {lastPage.showLogo && design.logoUrl && (
-            <img src={design.logoUrl} alt="Logo" className="w-12 h-12 object-contain mx-auto rounded-lg" />
+            <img src={design.logoUrl} alt="Logo" className="w-12 h-12 object-contain rounded-lg" />
           )}
           {renderRestaurantInfo(lastPage)}
         </div>
