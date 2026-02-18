@@ -198,7 +198,12 @@ export function MenuCanvas({
   };
 
   const renderNavigation = (cats: CategoryWithItems[], navStyle: NavStyle) => {
-    const baseClick = (catId: string) => (e: React.MouseEvent) => { e.stopPropagation(); onSelectCategory(catId); };
+    const baseClick = (catId: string) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onSelectCategory(catId);
+      const el = document.getElementById(`menu-cat-${catId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
 
     if (navStyle === 'pills') {
       return (
@@ -402,6 +407,7 @@ export function MenuCanvas({
         return (
           <div
             key={cat.id}
+            id={`menu-cat-${cat.id}`}
             className={`mb-6 transition-all rounded-lg ${selectedCategoryId === cat.id ? 'ring-2 ring-primary/30 p-3 -m-3' : ''}`}
             onClick={(e) => { e.stopPropagation(); onSelectCategory(cat.id); }}
           >

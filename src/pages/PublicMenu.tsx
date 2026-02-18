@@ -126,7 +126,11 @@ const PublicMenu = () => {
                   ? 'border-primary text-primary font-medium'
                   : 'border-transparent text-muted-foreground'
               }`}
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => {
+                setActiveCategory(cat.id);
+                const el = document.getElementById(`public-cat-${cat.id}`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
             >
               {getName(cat.translations, lang)}
             </button>
@@ -136,40 +140,50 @@ const PublicMenu = () => {
 
       {/* Items */}
       <main className="flex-1 px-4 py-4">
-        <div className="max-w-lg mx-auto space-y-3">
-          {currentCategory && filteredItems(currentCategory).map(item => (
-            <div
-              key={item.id}
-              className="p-4 bg-card rounded-xl border border-border cursor-pointer hover:border-primary/40 transition-all active:scale-[0.98]"
-              onClick={() => setSelectedItem(item)}
-            >
-              <div className="flex justify-between items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium">{getName(item.translations, lang)}</p>
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {getDesc(item.translations, lang)}
-                  </p>
-                  {(item.tags?.length || 0) > 0 && (
-                    <div className="flex gap-1 mt-2 flex-wrap">
-                      {item.tags?.map(tag => (
-                        <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
-                      ))}
+        <div className="max-w-lg mx-auto space-y-6">
+          {categories.map(cat => {
+            const items = filteredItems(cat);
+            if (items.length === 0 && search) return null;
+            return (
+              <div key={cat.id} id={`public-cat-${cat.id}`} className="scroll-mt-28">
+                <h2 className="text-lg font-bold mb-3 text-primary">{getName(cat.translations, lang)}</h2>
+                <div className="space-y-3">
+                  {items.map(item => (
+                    <div
+                      key={item.id}
+                      className="p-4 bg-card rounded-xl border border-border cursor-pointer hover:border-primary/40 transition-all active:scale-[0.98]"
+                      onClick={() => setSelectedItem(item)}
+                    >
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium">{getName(item.translations, lang)}</p>
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                            {getDesc(item.translations, lang)}
+                          </p>
+                          {(item.tags?.length || 0) > 0 && (
+                            <div className="flex gap-1 mt-2 flex-wrap">
+                              {item.tags?.map(tag => (
+                                <Badge key={tag} variant="secondary" className="text-[10px]">{tag}</Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-lg font-bold text-primary">{(item.price_cents / 100).toFixed(2)}€</span>
+                          {item.model?.status === 'ready' && (
+                            <Badge variant="outline" className="text-[10px]"><Box className="h-3 w-3 mr-1" /> 3D</Badge>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className="text-lg font-bold text-primary">{(item.price_cents / 100).toFixed(2)}€</span>
-                  {item.model?.status === 'ready' && (
-                    <Badge variant="outline" className="text-[10px]"><Box className="h-3 w-3 mr-1" /> 3D</Badge>
-                  )}
-                </div>
+                {items.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4 text-sm">{t('common.notFound', lang)}</p>
+                )}
               </div>
-            </div>
-          ))}
-
-          {currentCategory && filteredItems(currentCategory).length === 0 && (
-            <p className="text-center text-muted-foreground py-8">{t('common.notFound', lang)}</p>
-          )}
+            );
+          })}
         </div>
       </main>
 
