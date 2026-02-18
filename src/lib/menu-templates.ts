@@ -1,5 +1,7 @@
 export type MenuFormat = 'portrait' | 'landscape' | 'book';
 
+export type IconStyle = 'emoji' | 'lucide' | 'none';
+
 export interface AdvancedPageSettings {
   backgroundImageUrl?: string;
   backgroundOpacity?: number; // 0-1
@@ -10,6 +12,7 @@ export interface AdvancedPageSettings {
   showWebsite?: boolean;
   showSocials?: boolean;
   customText?: string;
+  iconStyle?: IconStyle;
 }
 
 export interface MenuDesign {
