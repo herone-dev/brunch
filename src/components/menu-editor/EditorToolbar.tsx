@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { type MenuDesign, getEffectiveStyles } from '@/lib/menu-templates';
+import { type MenuDesign, type TextSize, getEffectiveStyles } from '@/lib/menu-templates';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -299,6 +299,22 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
               <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
             ))}
           </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Taille du texte</Label>
+          <div className="grid grid-cols-3 gap-1.5">
+            {([['small', 'Petit'], ['medium', 'Moyen'], ['large', 'Grand']] as [TextSize, string][]).map(([size, label]) => (
+              <Button
+                key={size}
+                size="sm"
+                variant={styles.textSize === size ? 'default' : 'outline'}
+                className="text-[10px] h-7"
+                onClick={() => updateOverride('textSize', size)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
         </div>
       </CollapsibleSection>
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { type MenuDesign, type MenuFormat, type AdvancedPageSettings, type IconStyle, getEffectiveStyles } from '@/lib/menu-templates';
+import { type MenuDesign, type MenuFormat, type AdvancedPageSettings, type IconStyle, type TextSize, TEXT_SIZE_SCALES, getEffectiveStyles } from '@/lib/menu-templates';
 import { FloatingToolbar, type ElementStyle } from '@/components/menu-editor/FloatingToolbar';
 import { MapPin, Phone, Mail, Globe, Instagram, Facebook } from 'lucide-react';
 import type { CategoryWithItems, ItemWithDetails, Restaurant } from '@/lib/types';
@@ -41,6 +41,7 @@ export function MenuCanvas({
   onUpdateItemText, onUpdateCategoryText,
 }: Props) {
   const s = getEffectiveStyles(design);
+  const ts = TEXT_SIZE_SCALES[s.textSize || 'medium'];
   const canvasRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState<EditingElement | null>(null);
   const [toolbarPos, setToolbarPos] = useState({ top: 0, left: 0 });
@@ -250,7 +251,7 @@ export function MenuCanvas({
           )}
           <h2
             {...editableProps('cover-title')}
-            style={mergedStyle('cover-title', { fontFamily: s.fontHeading, fontSize: '28px', fontWeight: '700', marginBottom: '4px', lineHeight: 1.2 })}
+            style={mergedStyle('cover-title', { fontFamily: s.fontHeading, fontSize: `${ts.title}px`, fontWeight: '700', marginBottom: '4px', lineHeight: 1.2 })}
           >
             {design.coverTitle || restaurant?.name || 'Mon Restaurant'}
           </h2>
@@ -310,6 +311,7 @@ export function MenuCanvas({
               name={getName(cat.translations, lang)}
               catStyle={s.categoryStyle}
               styles={s}
+              catTitleSize={ts.catTitle}
               elementId={catElementId}
               editableProps={editableProps}
               mergedStyle={mergedStyle}
@@ -329,16 +331,16 @@ export function MenuCanvas({
                     {s.priceStyle === 'dots' ? (
                       <div>
                         <div className="flex items-baseline">
-                          <span {...editableProps(nameId)} style={mergedStyle(nameId, { fontWeight: '500', fontSize: '14px' })}>
+                          <span {...editableProps(nameId)} style={mergedStyle(nameId, { fontWeight: '500', fontSize: `${ts.item}px` })}>
                             {getName(item.translations, lang)}
                           </span>
                           <span className="flex-1 mx-2 border-b border-dotted" style={{ borderColor: s.bodyTextColor + '30' }} />
-                          <span {...editableProps(priceId)} style={mergedStyle(priceId, { fontSize: '14px', fontWeight: '600', color: s.accentColor })}>
+                          <span {...editableProps(priceId)} style={mergedStyle(priceId, { fontSize: `${ts.price}px`, fontWeight: '600', color: s.accentColor })}>
                             {(item.price_cents / 100).toFixed(2)}€
                           </span>
                         </div>
                         {getDesc(item.translations, lang) && (
-                          <p {...editableProps(descId)} style={mergedStyle(descId, { fontSize: '12px', marginTop: '2px', opacity: 0.6 })}>
+                          <p {...editableProps(descId)} style={mergedStyle(descId, { fontSize: `${ts.desc}px`, marginTop: '2px', opacity: 0.6 })}>
                             {getDesc(item.translations, lang)}
                           </p>
                         )}
@@ -346,16 +348,16 @@ export function MenuCanvas({
                     ) : (
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex-1">
-                          <p {...editableProps(nameId)} style={mergedStyle(nameId, { fontWeight: '500', fontSize: '14px' })}>
+                          <p {...editableProps(nameId)} style={mergedStyle(nameId, { fontWeight: '500', fontSize: `${ts.item}px` })}>
                             {getName(item.translations, lang)}
                           </p>
                           {getDesc(item.translations, lang) && (
-                            <p {...editableProps(descId)} style={mergedStyle(descId, { fontSize: '12px', marginTop: '2px', opacity: 0.6 })}>
+                            <p {...editableProps(descId)} style={mergedStyle(descId, { fontSize: `${ts.desc}px`, marginTop: '2px', opacity: 0.6 })}>
                               {getDesc(item.translations, lang)}
                             </p>
                           )}
                         </div>
-                        <span {...editableProps(priceId)} style={mergedStyle(priceId, { fontSize: '14px', fontWeight: '600', color: s.accentColor, whiteSpace: 'nowrap' })}>
+                        <span {...editableProps(priceId)} style={mergedStyle(priceId, { fontSize: `${ts.price}px`, fontWeight: '600', color: s.accentColor, whiteSpace: 'nowrap' })}>
                           {(item.price_cents / 100).toFixed(2)}€
                         </span>
                       </div>
@@ -435,18 +437,20 @@ export function MenuCanvas({
 }
 
 function CategoryHeader({
-  name, catStyle, styles, elementId, editableProps, mergedStyle,
+  name, catStyle, styles, catTitleSize, elementId, editableProps, mergedStyle,
 }: {
-  name: string; catStyle: string; styles: any; elementId: string;
+  name: string; catStyle: string; styles: any; catTitleSize: number; elementId: string;
   editableProps: (id: string) => any;
   mergedStyle: (id: string, base: React.CSSProperties) => React.CSSProperties;
 }) {
   const baseStyle: React.CSSProperties = { fontFamily: styles.fontHeading, color: styles.accentColor };
+  const elegantSize = Math.max(10, catTitleSize - 6);
+  const badgeSize = Math.max(11, catTitleSize - 5);
   switch (catStyle) {
     case 'underline':
       return (
         <div className="pb-1 mb-2" style={{ borderBottom: `2px solid ${styles.accentColor}` }}>
-          <h3 {...editableProps(elementId)} style={mergedStyle(elementId, { ...baseStyle, fontSize: '18px', fontWeight: '700' })}>{name}</h3>
+          <h3 {...editableProps(elementId)} style={mergedStyle(elementId, { ...baseStyle, fontSize: `${catTitleSize}px`, fontWeight: '700' })}>{name}</h3>
         </div>
       );
     case 'elegant':
@@ -454,7 +458,7 @@ function CategoryHeader({
         <div className="text-center mb-3">
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px" style={{ backgroundColor: styles.accentColor, opacity: 0.3 }} />
-            <h3 {...editableProps(elementId)} style={mergedStyle(elementId, { ...baseStyle, fontSize: '12px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.2em' })}>{name}</h3>
+            <h3 {...editableProps(elementId)} style={mergedStyle(elementId, { ...baseStyle, fontSize: `${elegantSize}px`, fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.2em' })}>{name}</h3>
             <div className="flex-1 h-px" style={{ backgroundColor: styles.accentColor, opacity: 0.3 }} />
           </div>
         </div>
@@ -462,13 +466,13 @@ function CategoryHeader({
     case 'badge':
       return (
         <div className="mb-2">
-          <span {...editableProps(elementId)} className={editableProps(elementId).className} style={mergedStyle(elementId, { ...baseStyle, display: 'inline-block', padding: '4px 12px', fontSize: '13px', fontWeight: '600', borderRadius: '999px', backgroundColor: styles.accentColor + '20' })}>{name}</span>
+          <span {...editableProps(elementId)} className={editableProps(elementId).className} style={mergedStyle(elementId, { ...baseStyle, display: 'inline-block', padding: '4px 12px', fontSize: `${badgeSize}px`, fontWeight: '600', borderRadius: '999px', backgroundColor: styles.accentColor + '20' })}>{name}</span>
         </div>
       );
     default:
       return (
         <div className="mb-2">
-          <h3 {...editableProps(elementId)} style={mergedStyle(elementId, { ...baseStyle, fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em' })}>{name}</h3>
+          <h3 {...editableProps(elementId)} style={mergedStyle(elementId, { ...baseStyle, fontSize: `${catTitleSize - 4}px`, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em' })}>{name}</h3>
           <div className="mt-1 w-8 h-0.5" style={{ backgroundColor: styles.accentColor }} />
         </div>
       );

@@ -32,6 +32,8 @@ export interface MenuDesign {
   footer?: AdvancedPageSettings;
 }
 
+export type TextSize = 'small' | 'medium' | 'large';
+
 export interface TemplateStyles {
   coverBg: string;
   coverTextColor: string;
@@ -44,10 +46,17 @@ export interface TemplateStyles {
   accentColor: string;
   fontHeading: string;
   fontBody: string;
+  textSize: TextSize;
   categoryStyle: 'underline' | 'divider' | 'badge' | 'elegant';
   priceStyle: 'inline' | 'dots' | 'right';
   borderRadius: string;
 }
+
+export const TEXT_SIZE_SCALES: Record<TextSize, { title: number; item: number; desc: number; price: number; catTitle: number }> = {
+  small:  { title: 24, item: 12, desc: 10, price: 12, catTitle: 14 },
+  medium: { title: 28, item: 14, desc: 12, price: 14, catTitle: 18 },
+  large:  { title: 34, item: 16, desc: 14, price: 16, catTitle: 22 },
+};
 
 export interface MenuTemplate {
   id: string;
@@ -78,6 +87,7 @@ export const MENU_TEMPLATES: MenuTemplate[] = [
       categoryStyle: 'underline',
       priceStyle: 'dots',
       borderRadius: '0px',
+      textSize: 'medium' as TextSize,
     },
   },
   {
@@ -100,6 +110,7 @@ export const MENU_TEMPLATES: MenuTemplate[] = [
       categoryStyle: 'elegant',
       priceStyle: 'right',
       borderRadius: '0px',
+      textSize: 'medium' as TextSize,
     },
   },
   {
@@ -122,6 +133,7 @@ export const MENU_TEMPLATES: MenuTemplate[] = [
       categoryStyle: 'divider',
       priceStyle: 'inline',
       borderRadius: '8px',
+      textSize: 'medium' as TextSize,
     },
   },
   {
@@ -144,6 +156,7 @@ export const MENU_TEMPLATES: MenuTemplate[] = [
       categoryStyle: 'badge',
       priceStyle: 'inline',
       borderRadius: '16px',
+      textSize: 'medium' as TextSize,
     },
   },
 ];
