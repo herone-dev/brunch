@@ -36,9 +36,11 @@ export interface TemplateStyles {
   coverBg: string;
   coverTextColor: string;
   coverBgOpacity: number;
+  coverBgImage: string;
   bodyBg: string;
   bodyTextColor: string;
   bodyBgOpacity: number;
+  bodyBgImage: string;
   accentColor: string;
   fontHeading: string;
   fontBody: string;
@@ -65,9 +67,11 @@ export const MENU_TEMPLATES: MenuTemplate[] = [
       coverBg: 'linear-gradient(180deg, #2c1810 0%, #4a2c20 100%)',
       coverTextColor: '#f5f0e8',
       coverBgOpacity: 1,
+      coverBgImage: '',
       bodyBg: '#f5f0e8',
       bodyTextColor: '#2c1810',
       bodyBgOpacity: 1,
+      bodyBgImage: '',
       accentColor: '#8b4513',
       fontHeading: "'Playfair Display', serif",
       fontBody: "'Lora', serif",
@@ -85,9 +89,11 @@ export const MENU_TEMPLATES: MenuTemplate[] = [
       coverBg: 'linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 100%)',
       coverTextColor: '#d4af37',
       coverBgOpacity: 1,
+      coverBgImage: '',
       bodyBg: '#0f0f14',
       bodyTextColor: '#e8e8e8',
       bodyBgOpacity: 1,
+      bodyBgImage: '',
       accentColor: '#d4af37',
       fontHeading: "'Cormorant Garamond', serif",
       fontBody: "'Montserrat', sans-serif",
@@ -105,9 +111,11 @@ export const MENU_TEMPLATES: MenuTemplate[] = [
       coverBg: 'linear-gradient(180deg, #111111 0%, #1a1a1a 100%)',
       coverTextColor: '#ffffff',
       coverBgOpacity: 1,
+      coverBgImage: '',
       bodyBg: '#ffffff',
       bodyTextColor: '#111111',
       bodyBgOpacity: 1,
+      bodyBgImage: '',
       accentColor: '#e65100',
       fontHeading: "'Space Grotesk', sans-serif",
       fontBody: "'Inter', sans-serif",
@@ -125,9 +133,11 @@ export const MENU_TEMPLATES: MenuTemplate[] = [
       coverBg: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #a8edea 100%)',
       coverTextColor: '#2d2d2d',
       coverBgOpacity: 1,
+      coverBgImage: '',
       bodyBg: '#fefefe',
       bodyTextColor: '#2d2d2d',
       bodyBgOpacity: 1,
+      bodyBgImage: '',
       accentColor: '#e91e63',
       fontHeading: "'Poppins', sans-serif",
       fontBody: "'Quicksand', sans-serif",

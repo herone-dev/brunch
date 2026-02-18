@@ -4,13 +4,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Palette, Type, Paintbrush, ChevronDown, ChevronUp } from 'lucide-react';
+import { Palette, Type, Paintbrush, ChevronDown, ChevronUp, Upload, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import type { Restaurant } from '@/lib/types';
 
 interface Props {
   design: MenuDesign;
   onChange: (design: MenuDesign) => void;
   restaurant?: Restaurant | null;
+  restaurantId?: string;
 }
 
 const FONT_OPTIONS = [
@@ -30,14 +33,12 @@ const BG_PRESETS = [
   { label: 'Crème', value: '#f5f0e8' },
   { label: 'Blanc', value: '#ffffff' },
   { label: 'Gris clair', value: '#f8f9fa' },
-  { label: 'Anthracite', value: '#2d2d2d' },
 ];
 
 const GRADIENT_PRESETS = [
   { label: 'Nuit étoilée', value: 'linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 100%)' },
   { label: 'Bois foncé', value: 'linear-gradient(180deg, #2c1810 0%, #4a2c20 100%)' },
   { label: 'Océan', value: 'linear-gradient(180deg, #0c3547 0%, #204051 100%)' },
-  { label: 'Doré', value: 'linear-gradient(180deg, #1a1510 0%, #2a2015 100%)' },
 ];
 
 function extractColor(bg: string): string {
@@ -62,14 +63,40 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
   );
 }
 
-export function EditorToolbar({ design, onChange }: Props) {
+export function EditorToolbar({ design, onChange, restaurantId }: Props) {
   const styles = getEffectiveStyles(design);
+  const [uploading, setUploading] = useState<'cover' | 'body' | null>(null);
 
   const updateOverride = (key: string, value: string) => {
     onChange({
       ...design,
       overrides: { ...design.overrides, [key]: value },
     });
+  };
+
+  const handleBgImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'cover' | 'body') => {
+    const file = e.target.files?.[0];
+    if (!file || !restaurantId) return;
+    setUploading(target);
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `${restaurantId}/bg-${target}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('menu-media').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('menu-media').getPublicUrl(path);
+      const key = target === 'cover' ? 'coverBgImage' : 'bodyBgImage';
+      updateOverride(key, urlData.publicUrl);
+      toast.success('Image de fond uploadée !');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const removeBgImage = (target: 'cover' | 'body') => {
+    const key = target === 'cover' ? 'coverBgImage' : 'bodyBgImage';
+    updateOverride(key, '');
   };
 
   return (
@@ -112,13 +139,30 @@ export function EditorToolbar({ design, onChange }: Props) {
               <button
                 key={g.value}
                 className={`w-full aspect-square rounded-md border-2 transition-all hover:scale-105 ${
-                  styles.coverBg === g.value ? 'border-primary ring-1 ring-primary' : 'border-border'
+                  styles.coverBg === g.value && !design.overrides?.coverBgImage ? 'border-primary ring-1 ring-primary' : 'border-border'
                 }`}
                 style={{ background: g.value }}
                 title={g.label}
-                onClick={() => updateOverride('coverBg', g.value)}
+                onClick={() => { updateOverride('coverBg', g.value); removeBgImage('cover'); }}
               />
             ))}
+            {/* Image upload slot */}
+            {design.overrides?.coverBgImage ? (
+              <div className="relative w-full aspect-square rounded-md border-2 border-primary ring-1 ring-primary overflow-hidden">
+                <img src={design.overrides.coverBgImage} alt="" className="w-full h-full object-cover" />
+                <button
+                  className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center hover:scale-110 transition-transform"
+                  onClick={() => removeBgImage('cover')}
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ) : (
+              <label className="w-full aspect-square rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all">
+                <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+                <input type="file" accept="image/*" onChange={e => handleBgImageUpload(e, 'cover')} className="hidden" disabled={uploading === 'cover'} />
+              </label>
+            )}
           </div>
           <div className="flex items-center gap-1.5 mt-1">
             <input
@@ -157,13 +201,30 @@ export function EditorToolbar({ design, onChange }: Props) {
               <button
                 key={bg.value}
                 className={`w-full aspect-square rounded-md border-2 transition-all hover:scale-105 ${
-                  styles.bodyBg === bg.value ? 'border-primary ring-1 ring-primary' : 'border-border'
+                  styles.bodyBg === bg.value && !design.overrides?.bodyBgImage ? 'border-primary ring-1 ring-primary' : 'border-border'
                 }`}
                 style={{ backgroundColor: bg.value }}
                 title={bg.label}
-                onClick={() => updateOverride('bodyBg', bg.value)}
+                onClick={() => { updateOverride('bodyBg', bg.value); removeBgImage('body'); }}
               />
             ))}
+            {/* Image upload slot */}
+            {design.overrides?.bodyBgImage ? (
+              <div className="relative w-full aspect-square rounded-md border-2 border-primary ring-1 ring-primary overflow-hidden">
+                <img src={design.overrides.bodyBgImage} alt="" className="w-full h-full object-cover" />
+                <button
+                  className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center hover:scale-110 transition-transform"
+                  onClick={() => removeBgImage('body')}
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ) : (
+              <label className="w-full aspect-square rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all">
+                <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+                <input type="file" accept="image/*" onChange={e => handleBgImageUpload(e, 'body')} className="hidden" disabled={uploading === 'body'} />
+              </label>
+            )}
           </div>
           <div className="flex items-center gap-1.5 mt-1">
             <input

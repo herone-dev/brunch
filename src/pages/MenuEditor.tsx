@@ -348,7 +348,7 @@ const MenuEditor = () => {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="design" className="flex-1 overflow-y-auto m-0 p-3">
-              <EditorToolbar design={design} onChange={handleDesignChange} restaurant={restaurant} />
+              <EditorToolbar design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId} />
             </TabsContent>
             <TabsContent value="advanced" className="flex-1 overflow-y-auto m-0 p-3">
               <AdvancedDesignPanel design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId || ''} />
