@@ -351,9 +351,14 @@ export type Database = {
           created_at: string
           design_json: Json | null
           id: string
+          is_default: boolean
+          is_global: boolean
           name: string
           published_at: string | null
           restaurant_id: string
+          schedule_days: string[] | null
+          schedule_end: string | null
+          schedule_start: string | null
           status: Database["public"]["Enums"]["menu_status"]
           updated_at: string
         }
@@ -361,9 +366,14 @@ export type Database = {
           created_at?: string
           design_json?: Json | null
           id?: string
+          is_default?: boolean
+          is_global?: boolean
           name?: string
           published_at?: string | null
           restaurant_id: string
+          schedule_days?: string[] | null
+          schedule_end?: string | null
+          schedule_start?: string | null
           status?: Database["public"]["Enums"]["menu_status"]
           updated_at?: string
         }
@@ -371,9 +381,14 @@ export type Database = {
           created_at?: string
           design_json?: Json | null
           id?: string
+          is_default?: boolean
+          is_global?: boolean
           name?: string
           published_at?: string | null
           restaurant_id?: string
+          schedule_days?: string[] | null
+          schedule_end?: string | null
+          schedule_start?: string | null
           status?: Database["public"]["Enums"]["menu_status"]
           updated_at?: string
         }
