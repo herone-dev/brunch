@@ -181,16 +181,18 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
               placeholder="#000000"
             />
           </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap">Opacité</span>
-            <Slider
-              value={[design.overrides?.coverBgOpacity ?? 1]}
-              onValueChange={([v]) => onChange({ ...design, overrides: { ...design.overrides, coverBgOpacity: v } })}
-              min={0.05} max={1} step={0.05}
-              className="flex-1"
-            />
-            <span className="text-[10px] text-muted-foreground w-7 text-right">{Math.round((design.overrides?.coverBgOpacity ?? 1) * 100)}%</span>
-          </div>
+          {design.overrides?.coverBgImage && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">Opacité</span>
+              <Slider
+                value={[design.overrides?.coverBgOpacity ?? 1]}
+                onValueChange={([v]) => onChange({ ...design, overrides: { ...design.overrides, coverBgOpacity: v } })}
+                min={0.05} max={1} step={0.05}
+                className="flex-1"
+              />
+              <span className="text-[10px] text-muted-foreground w-7 text-right">{Math.round((design.overrides?.coverBgOpacity ?? 1) * 100)}%</span>
+            </div>
+          )}
         </div>
 
         {/* Body background */}
@@ -243,16 +245,18 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
               placeholder="#000000"
             />
           </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap">Opacité</span>
-            <Slider
-              value={[design.overrides?.bodyBgOpacity ?? 1]}
-              onValueChange={([v]) => onChange({ ...design, overrides: { ...design.overrides, bodyBgOpacity: v } })}
-              min={0.05} max={1} step={0.05}
-              className="flex-1"
-            />
-            <span className="text-[10px] text-muted-foreground w-7 text-right">{Math.round((design.overrides?.bodyBgOpacity ?? 1) * 100)}%</span>
-          </div>
+          {design.overrides?.bodyBgImage && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">Opacité</span>
+              <Slider
+                value={[design.overrides?.bodyBgOpacity ?? 1]}
+                onValueChange={([v]) => onChange({ ...design, overrides: { ...design.overrides, bodyBgOpacity: v } })}
+                min={0.05} max={1} step={0.05}
+                className="flex-1"
+              />
+              <span className="text-[10px] text-muted-foreground w-7 text-right">{Math.round((design.overrides?.bodyBgOpacity ?? 1) * 100)}%</span>
+            </div>
+          )}
         </div>
       </CollapsibleSection>
 

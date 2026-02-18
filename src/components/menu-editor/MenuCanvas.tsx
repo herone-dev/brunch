@@ -232,9 +232,17 @@ export function MenuCanvas({
 
     return (
       <div
-        className="relative p-8 text-center min-h-[220px] flex flex-col items-center justify-center"
+        className="relative p-8 text-center min-h-[220px] flex flex-col items-center justify-center overflow-hidden"
         style={{ background: s.coverBg, color: s.coverTextColor }}
       >
+        {design.overrides?.coverBgImage && (
+          <div className="absolute inset-0 z-0" style={{
+            backgroundImage: `url(${design.overrides.coverBgImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: design.overrides?.coverBgOpacity ?? 1,
+          }} />
+        )}
         {hasAdvanced && renderBgOverlay(firstPage)}
         <div className="relative z-10">
           {(hasAdvanced ? firstPage?.showLogo !== false : true) && design.logoUrl && (
@@ -280,7 +288,16 @@ export function MenuCanvas({
   };
 
   const renderMenuBody = () => (
-    <div style={{ backgroundColor: s.bodyBg, color: s.bodyTextColor }} className="p-5 min-h-[300px]">
+    <div style={{ backgroundColor: s.bodyBg, color: s.bodyTextColor }} className="relative p-5 min-h-[300px] overflow-hidden">
+      {design.overrides?.bodyBgImage && (
+        <div className="absolute inset-0 z-0" style={{
+          backgroundImage: `url(${design.overrides.bodyBgImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          opacity: design.overrides?.bodyBgOpacity ?? 1,
+        }} />
+      )}
+      <div className="relative z-10">
       {categories.filter(c => c.is_visible).map(cat => {
         const catElementId = `cat-${cat.id}`;
         return (
@@ -356,6 +373,7 @@ export function MenuCanvas({
           <p className="text-sm mt-1">Ajoutez des catégories et des plats</p>
         </div>
       )}
+      </div>
     </div>
   );
 
