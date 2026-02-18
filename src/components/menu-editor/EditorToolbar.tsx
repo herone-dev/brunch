@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { type MenuDesign, getEffectiveStyles } from '@/lib/menu-templates';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,6 +66,8 @@ function CollapsibleSection({ title, children, defaultOpen = false }: { title: s
 export function EditorToolbar({ design, onChange, restaurantId }: Props) {
   const styles = getEffectiveStyles(design);
   const [uploading, setUploading] = useState<'cover' | 'body' | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const bodyInputRef = useRef<HTMLInputElement>(null);
 
   const updateOverride = (key: string, value: string) => {
     onChange({
@@ -158,11 +160,16 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
                 </button>
               </div>
             ) : (
-              <label className="w-full aspect-square rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all">
+              <button
+                type="button"
+                className="w-full aspect-square rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={uploading === 'cover'}
+              >
                 <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-                <input type="file" accept="image/*" onChange={e => handleBgImageUpload(e, 'cover')} className="hidden" disabled={uploading === 'cover'} />
-              </label>
+              </button>
             )}
+            <input ref={coverInputRef} type="file" accept="image/*" onChange={e => handleBgImageUpload(e, 'cover')} className="hidden" />
           </div>
           <div className="flex items-center gap-1.5 mt-1">
             <input
@@ -222,11 +229,16 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
                 </button>
               </div>
             ) : (
-              <label className="w-full aspect-square rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all">
+              <button
+                type="button"
+                className="w-full aspect-square rounded-md border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center transition-all"
+                onClick={() => bodyInputRef.current?.click()}
+                disabled={uploading === 'body'}
+              >
                 <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-                <input type="file" accept="image/*" onChange={e => handleBgImageUpload(e, 'body')} className="hidden" disabled={uploading === 'body'} />
-              </label>
+              </button>
             )}
+            <input ref={bodyInputRef} type="file" accept="image/*" onChange={e => handleBgImageUpload(e, 'body')} className="hidden" />
           </div>
           <div className="flex items-center gap-1.5 mt-1">
             <input
