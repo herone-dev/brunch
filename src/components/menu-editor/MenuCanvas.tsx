@@ -218,15 +218,15 @@ export function MenuCanvas({
       >
         {renderBgOverlay(settings)}
         <div className="relative z-10 flex items-center gap-3" style={{
-          justifyContent: settings.logoPosition === 'right' ? 'flex-end' : settings.logoPosition === 'center' ? 'center' : 'flex-start',
+          justifyContent: (design.logoPosition || 'center') === 'right' ? 'flex-end' : (design.logoPosition || 'center') === 'center' ? 'center' : 'flex-start',
         }}>
-          {settings.showLogo && design.logoUrl && settings.logoPosition !== 'right' && (
+          {settings.showLogo && design.logoUrl && (design.logoPosition || 'center') !== 'right' && (
             <img src={design.logoUrl} alt="Logo" className="w-6 h-6 object-contain rounded-sm shrink-0" />
           )}
-          <div className={`${settings.logoPosition === 'center' ? '' : 'flex-1'} min-w-0`}>
+          <div className={`${(design.logoPosition || 'center') === 'center' ? '' : 'flex-1'} min-w-0`}>
             {renderRestaurantInfo(settings, true)}
           </div>
-          {settings.showLogo && design.logoUrl && settings.logoPosition === 'right' && (
+          {settings.showLogo && design.logoUrl && (design.logoPosition || 'center') === 'right' && (
             <img src={design.logoUrl} alt="Logo" className="w-6 h-6 object-contain rounded-sm shrink-0" />
           )}
         </div>
@@ -254,8 +254,8 @@ export function MenuCanvas({
         {hasAdvanced && renderBgOverlay(firstPage)}
         <div className="relative z-10" style={{
           display: 'flex', flexDirection: 'column',
-          alignItems: hasAdvanced && firstPage?.logoPosition === 'left' ? 'flex-start'
-            : hasAdvanced && firstPage?.logoPosition === 'right' ? 'flex-end'
+          alignItems: design.logoPosition === 'left' ? 'flex-start'
+            : design.logoPosition === 'right' ? 'flex-end'
             : 'center',
         }}>
           {(hasAdvanced ? firstPage?.showLogo !== false : true) && design.logoUrl && (
@@ -292,8 +292,8 @@ export function MenuCanvas({
         {renderBgOverlay(lastPage)}
         <div className="relative z-10 space-y-2" style={{
           display: 'flex', flexDirection: 'column',
-          alignItems: lastPage.logoPosition === 'left' ? 'flex-start'
-            : lastPage.logoPosition === 'right' ? 'flex-end'
+          alignItems: design.logoPosition === 'left' ? 'flex-start'
+            : design.logoPosition === 'right' ? 'flex-end'
             : 'center',
         }}>
           {lastPage.showLogo && design.logoUrl && (

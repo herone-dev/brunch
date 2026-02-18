@@ -267,11 +267,11 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId, onL
                         <button
                           key={opt.id}
                           className={`flex-1 py-1.5 text-[10px] font-medium transition-colors ${
-                            (hfSettings.logoPosition || 'center') === opt.id
+                            (design.logoPosition || 'center') === opt.id
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-card text-muted-foreground hover:bg-muted'
                           }`}
-                          onClick={() => updateHFSettings(activeHFSection, { logoPosition: opt.id })}
+                          onClick={() => onChange({ ...design, logoPosition: opt.id })}
                         >
                           {opt.label}
                         </button>
