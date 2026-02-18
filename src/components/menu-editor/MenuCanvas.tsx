@@ -58,7 +58,6 @@ export function MenuCanvas({
   };
 
   const handleElementClick = (e: React.MouseEvent, elementId: string) => {
-    e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setEditing({ id: elementId, rect });
     setToolbarPos({ top: rect.top, left: rect.left });
@@ -100,7 +99,10 @@ export function MenuCanvas({
   const editableProps = (elementId: string) => ({
     contentEditable: editing?.id === elementId,
     suppressContentEditableWarning: true,
-    onClick: (e: React.MouseEvent) => handleElementClick(e, elementId),
+    onClick: (e: React.MouseEvent) => {
+      // Don't stopPropagation so parent item/category click still fires
+      handleElementClick(e, elementId);
+    },
     onBlur: (e: React.FocusEvent) => handleBlur(elementId, (e.target as HTMLElement).textContent || ''),
     className: `outline-none transition-all cursor-pointer ${
       editing?.id === elementId
