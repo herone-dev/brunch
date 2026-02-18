@@ -127,6 +127,17 @@ export function EditorToolbar({ design, onChange, restaurantId }: Props) {
             className="h-8 text-xs"
           />
         </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Hauteur de la couverture ({design.coverHeight || 220}px)</Label>
+          <Slider
+            value={[design.coverHeight || 220]}
+            onValueChange={([v]) => onChange({ ...design, coverHeight: v })}
+            min={120}
+            max={500}
+            step={10}
+            className="w-full"
+          />
+        </div>
       </CollapsibleSection>
 
       <div className="h-px bg-border" />

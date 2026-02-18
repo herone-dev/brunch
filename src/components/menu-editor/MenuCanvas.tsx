@@ -232,8 +232,8 @@ export function MenuCanvas({
 
     return (
       <div
-        className="relative p-8 text-center min-h-[220px] flex flex-col items-center justify-center overflow-hidden"
-        style={{ background: s.coverBg, color: s.coverTextColor }}
+        className="relative p-8 text-center flex flex-col items-center justify-center overflow-hidden"
+        style={{ background: s.coverBg, color: s.coverTextColor, minHeight: `${design.coverHeight || 220}px` }}
       >
         {design.overrides?.coverBgImage && (
           <div className="absolute inset-0 z-0" style={{
