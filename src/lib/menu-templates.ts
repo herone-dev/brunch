@@ -17,6 +17,7 @@ export interface AdvancedPageSettings {
 
 export interface MenuDesign {
   templateId: string;
+  activeCustomTemplateId?: string;
   format?: MenuFormat;
   coverTitle?: string;
   coverSubtitle?: string;
