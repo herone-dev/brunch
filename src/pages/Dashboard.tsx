@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import type { ItemWithDetails, Menu, ModelJob } from "@/lib/types";
 import { RestaurantSettings } from "@/components/RestaurantSettings";
+import { MenuScheduleDialog } from "@/components/MenuScheduleDialog";
 
 /* ─── Onboarding dialog (first time) ─── */
 const OnboardingDialog = ({ open, onCreated }: { open: boolean; onCreated: (id: string) => void }) => {
@@ -87,44 +88,74 @@ const OnboardingDialog = ({ open, onCreated }: { open: boolean; onCreated: (id: 
 };
 
 /* ─── Menu card ─── */
-const MenuCard = ({ menu, restaurantId, slug }: { menu: Menu; restaurantId: string; slug: string }) => (
-  <Card className="group hover:border-primary/40 transition-all hover:shadow-sm">
-    <CardContent className="flex items-center justify-between p-4">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <FileText className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <p className="font-medium text-sm">{menu.name}</p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <Badge variant={menu.status === "published" ? "default" : "secondary"} className="text-[10px] h-4 px-1.5">
-              {menu.status === "published" ? <><Eye className="h-2.5 w-2.5 mr-0.5" /> Publié</> : <><EyeOff className="h-2.5 w-2.5 mr-0.5" /> Brouillon</>}
-            </Badge>
-            {menu.published_at && (
-              <span className="text-[10px] text-muted-foreground">
-                {new Date(menu.published_at).toLocaleDateString("fr-FR")}
-              </span>
-            )}
+const MenuCard = ({ menu, restaurantId, slug }: { menu: Menu; restaurantId: string; slug: string }) => {
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const menuAny = menu as any;
+  const hasSchedule = menuAny.schedule_start && menuAny.schedule_end;
+
+  return (
+    <>
+      <Card className="group hover:border-primary/40 transition-all hover:shadow-sm">
+        <CardContent className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="font-medium text-sm">{menu.name}</p>
+                {menuAny.is_default && (
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-amber-400 text-amber-600">Par défaut</Badge>
+                )}
+                {menuAny.is_global && (
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-primary text-primary">Global</Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Badge variant={menu.status === "published" ? "default" : "secondary"} className="text-[10px] h-4 px-1.5">
+                  {menu.status === "published" ? <><Eye className="h-2.5 w-2.5 mr-0.5" /> Publié</> : <><EyeOff className="h-2.5 w-2.5 mr-0.5" /> Brouillon</>}
+                </Badge>
+                {hasSchedule && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {menuAny.schedule_start?.slice(0, 5)} – {menuAny.schedule_end?.slice(0, 5)}
+                  </span>
+                )}
+                {menu.published_at && !hasSchedule && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(menu.published_at).toLocaleDateString("fr-FR")}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        {menu.status === "published" && (
-          <Button size="sm" variant="ghost" asChild>
-            <Link to={`/m/${slug}`} target="_blank">
-              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Voir
-            </Link>
-          </Button>
-        )}
-        <Button size="sm" variant="outline" asChild>
-          <Link to={`/app/restaurants/${restaurantId}/menu`}>
-            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Éditer
-          </Link>
-        </Button>
-      </div>
-    </CardContent>
-  </Card>
-);
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setScheduleOpen(true)}>
+              <Settings className="h-3.5 w-3.5" />
+            </Button>
+            {menu.status === "published" && (
+              <Button size="sm" variant="ghost" asChild>
+                <Link to={`/m/${slug}`} target="_blank">
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" /> Voir
+                </Link>
+              </Button>
+            )}
+            <Button size="sm" variant="outline" asChild>
+              <Link to={`/app/restaurants/${restaurantId}/menu`}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" /> Éditer
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      <MenuScheduleDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        menu={menu}
+        restaurantId={restaurantId}
+      />
+    </>
+  );
+};
 
 /* ─── 3D item row ─── */
 const ModelStatusIcon = ({ status }: { status: string }) => {
