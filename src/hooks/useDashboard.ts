@@ -110,3 +110,20 @@ export function useModelJobs(restaurantId: string | undefined) {
     },
   });
 }
+
+export function useQrScanCount(restaurantId: string | undefined) {
+  return useQuery({
+    queryKey: ['qr-scan-count', restaurantId],
+    enabled: !!restaurantId,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('analytics_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('restaurant_id', restaurantId!)
+        .eq('type', 'qr_scan');
+
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+}
