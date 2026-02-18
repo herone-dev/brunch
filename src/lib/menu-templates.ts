@@ -2,10 +2,13 @@ export type MenuFormat = 'portrait' | 'landscape' | 'book';
 
 export type IconStyle = 'emoji' | 'lucide' | 'none';
 
+export type LogoPosition = 'left' | 'center' | 'right';
+
 export interface AdvancedPageSettings {
   backgroundImageUrl?: string;
   backgroundOpacity?: number; // 0-1
   showLogo?: boolean;
+  logoPosition?: LogoPosition;
   showAddress?: boolean;
   showPhone?: boolean;
   showEmail?: boolean;
