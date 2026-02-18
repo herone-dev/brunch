@@ -292,6 +292,7 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId, onL
               <ToggleRow label="Email" checked={hfSettings.showEmail ?? false} onChange={v => updateHFSettings(activeHFSection, { showEmail: v })} available={!!restaurant?.email} />
               <ToggleRow label="Site web" checked={hfSettings.showWebsite ?? false} onChange={v => updateHFSettings(activeHFSection, { showWebsite: v })} available={!!restaurant?.website} />
               <ToggleRow label="Réseaux" checked={hfSettings.showSocials ?? false} onChange={v => updateHFSettings(activeHFSection, { showSocials: v })} available={!!(restaurant?.instagram || restaurant?.facebook || restaurant?.tiktok)} />
+              <ToggleRow label="Navigation" checked={hfSettings.showNavigation ?? false} onChange={v => updateHFSettings(activeHFSection, { showNavigation: v })} />
             </div>
           </div>
           {/* Background image */}

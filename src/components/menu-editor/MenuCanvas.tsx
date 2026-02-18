@@ -200,9 +200,11 @@ export function MenuCanvas({
   const renderHeaderFooter = (section: 'header' | 'footer') => {
     const settings = design[section];
     if (!design.advancedMode || !settings) return null;
-    const hasContent = settings.backgroundImageUrl || settings.showLogo || settings.showAddress ||
+    const hasContent = settings.backgroundImageUrl || settings.showAddress ||
       settings.showPhone || settings.showEmail || settings.showWebsite || settings.showSocials || settings.customText;
-    if (!hasContent) return null;
+    const visibleCats = categories.filter(c => c.is_visible);
+    const showNav = settings.showNavigation ?? false;
+    if (!hasContent && !showNav) return null;
 
     const isHeader = section === 'header';
     return (
@@ -217,10 +219,28 @@ export function MenuCanvas({
         }}
       >
         {renderBgOverlay(settings)}
-        <div className="relative z-10 flex items-center justify-center gap-3">
-          <div className="min-w-0">
-            {renderRestaurantInfo(settings, true)}
-          </div>
+        <div className="relative z-10 space-y-1.5">
+          {hasContent && (
+            <div className="flex items-center justify-center gap-3">
+              <div className="min-w-0">
+                {renderRestaurantInfo(settings, true)}
+              </div>
+            </div>
+          )}
+          {showNav && visibleCats.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1" style={{ fontSize: '9px' }}>
+              {visibleCats.map(cat => (
+                <button
+                  key={cat.id}
+                  className="hover:underline transition-all cursor-pointer whitespace-nowrap font-medium"
+                  style={{ color: s.accentColor, opacity: selectedCategoryId === cat.id ? 1 : 0.7 }}
+                  onClick={(e) => { e.stopPropagation(); onSelectCategory(cat.id); }}
+                >
+                  {getName(cat.translations, lang)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
