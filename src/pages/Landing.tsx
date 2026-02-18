@@ -55,7 +55,7 @@ const Landing = () => {
             <img
               src={heroPhones}
               alt="Application BRUNCH - menu digital sur smartphone avec QR code"
-              className="w-full max-w-md md:max-w-lg drop-shadow-2xl"
+              className="w-full max-w-xs md:max-w-sm rounded-2xl drop-shadow-2xl"
               loading="eager"
             />
           </div>
