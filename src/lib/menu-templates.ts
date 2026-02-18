@@ -26,6 +26,7 @@ export interface MenuDesign {
   coverSubtitle?: string;
   logoUrl?: string;
   logoPosition?: LogoPosition;
+  showLogo?: boolean;
   overrides?: Partial<TemplateStyles>;
   elementStyles?: Record<string, import('@/components/menu-editor/FloatingToolbar').ElementStyle>;
   // Advanced mode

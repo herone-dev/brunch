@@ -250,7 +250,7 @@ export function MenuCanvas({
             : design.logoPosition === 'right' ? 'flex-end'
             : 'center',
         }}>
-          {(hasAdvanced ? firstPage?.showLogo !== false : true) && design.logoUrl && (
+          {(design.showLogo ?? true) && design.logoUrl && (
             <img src={design.logoUrl} alt="Logo" className="w-16 h-16 object-contain mb-3 rounded-lg cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all" />
           )}
           <h2
