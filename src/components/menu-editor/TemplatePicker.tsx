@@ -34,6 +34,7 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
   const [activeHFSection, setActiveHFSection] = useState<HeaderFooterSection>('header');
   const [hfOpen, setHfOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(true);
 
   // Load custom templates
   useEffect(() => {
@@ -108,62 +109,68 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
 
   const hfSettings = getHFSettings(activeHFSection);
 
-  return (
-    <div className="space-y-4">
-      {/* Built-in templates */}
-      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Templates</h4>
-      <div className="grid grid-cols-2 gap-2">
-        {MENU_TEMPLATES.map(t => {
-          const active = design.templateId === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => onChange({ ...design, templateId: t.id })}
-              className={`relative rounded-lg overflow-hidden border-2 transition-all text-left ${
-                active ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/40'
-              }`}
-            >
-              <div className="h-20 w-full" style={{ background: t.previewGradient }} />
-              <div className="p-2">
-                <p className="text-xs font-medium truncate">{t.name}</p>
-              </div>
-              {active && (
-                <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                  <Check className="h-3 w-3" />
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
+  // Extract a preview gradient from a saved design
+  const getPreviewFromDesign = (d: MenuDesign): string => {
+    const tpl = MENU_TEMPLATES.find(t => t.id === d.templateId);
+    if (d.overrides?.coverBg) return d.overrides.coverBg;
+    return tpl?.previewGradient || 'linear-gradient(135deg, #667 0%, #999 100%)';
+  };
 
-      {/* Custom saved templates */}
-      {customTemplates.length > 0 && (
-        <>
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mes templates</h4>
-          <div className="space-y-1.5">
-            {customTemplates.map(ct => (
-              <div key={ct.id} className="flex items-center gap-1.5 group">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 text-xs h-8 justify-start"
-                  onClick={() => onChange(ct.design_json)}
-                >
-                  {ct.name}
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive"
-                  onClick={() => handleDeleteTemplate(ct.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+  return (
+    <div className="space-y-3">
+      {/* Built-in templates */}
+      <button
+        className="w-full flex items-center justify-between py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+        onClick={() => setTemplatesOpen(!templatesOpen)}
+      >
+        <span>Templates</span>
+        {templatesOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </button>
+
+      {templatesOpen && (
+        <div className="grid grid-cols-3 gap-1.5">
+          {MENU_TEMPLATES.map(t => {
+            const active = design.templateId === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => onChange({ ...design, templateId: t.id })}
+                className={`relative rounded-md overflow-hidden border-2 transition-all text-left ${
+                  active ? 'border-primary ring-1 ring-primary/20' : 'border-border hover:border-primary/40'
+                }`}
+              >
+                <div className="h-10 w-full" style={{ background: t.previewGradient }} />
+                <div className="px-1.5 py-1">
+                  <p className="text-[9px] font-medium truncate">{t.name}</p>
+                </div>
+                {active && (
+                  <div className="absolute top-0.5 right-0.5 bg-primary text-primary-foreground rounded-full p-px">
+                    <Check className="h-2.5 w-2.5" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+          {/* Custom saved templates in same grid */}
+          {customTemplates.map(ct => (
+            <button
+              key={ct.id}
+              onClick={() => onChange(ct.design_json)}
+              className="relative rounded-md overflow-hidden border-2 border-border hover:border-primary/40 transition-all text-left group"
+            >
+              <div className="h-10 w-full" style={{ background: getPreviewFromDesign(ct.design_json) }} />
+              <div className="px-1.5 py-1">
+                <p className="text-[9px] font-medium truncate">{ct.name}</p>
               </div>
-            ))}
-          </div>
-        </>
+              <button
+                className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(ct.id); }}
+              >
+                ✕
+              </button>
+            </button>
+          ))}
+        </div>
       )}
 
       {/* Save current as template */}
