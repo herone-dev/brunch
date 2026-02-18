@@ -130,11 +130,11 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
       {templatesOpen && (
         <div className="grid grid-cols-3 gap-1.5">
           {MENU_TEMPLATES.map(t => {
-            const active = design.templateId === t.id;
+            const active = design.templateId === t.id && !design.activeCustomTemplateId;
             return (
               <button
                 key={t.id}
-                onClick={() => onChange({ ...design, templateId: t.id })}
+                onClick={() => onChange({ ...design, templateId: t.id, activeCustomTemplateId: undefined })}
                 className={`relative rounded-md overflow-hidden border-2 transition-all text-left ${
                   active ? 'border-primary ring-1 ring-primary/20' : 'border-border hover:border-primary/40'
                 }`}
@@ -152,24 +152,34 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
             );
           })}
           {/* Custom saved templates in same grid */}
-          {customTemplates.map(ct => (
-            <button
-              key={ct.id}
-              onClick={() => onChange(ct.design_json)}
-              className="relative rounded-md overflow-hidden border-2 border-border hover:border-primary/40 transition-all text-left group"
-            >
-              <div className="h-10 w-full" style={{ background: getPreviewFromDesign(ct.design_json) }} />
-              <div className="px-1.5 py-1">
-                <p className="text-[9px] font-medium truncate">{ct.name}</p>
-              </div>
+          {customTemplates.map(ct => {
+            const active = design.activeCustomTemplateId === ct.id;
+            return (
               <button
-                className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
-                onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(ct.id); }}
+                key={ct.id}
+                onClick={() => onChange({ ...ct.design_json, activeCustomTemplateId: ct.id })}
+                className={`relative rounded-md overflow-hidden border-2 transition-all text-left group ${
+                  active ? 'border-primary ring-1 ring-primary/20' : 'border-border hover:border-primary/40'
+                }`}
               >
-                ✕
+                <div className="h-10 w-full" style={{ background: getPreviewFromDesign(ct.design_json) }} />
+                <div className="px-1.5 py-1">
+                  <p className="text-[9px] font-medium truncate">{ct.name}</p>
+                </div>
+                {active && (
+                  <div className="absolute top-0.5 right-0.5 bg-primary text-primary-foreground rounded-full p-px">
+                    <Check className="h-2.5 w-2.5" />
+                  </div>
+                )}
+                <button
+                  className="absolute top-0.5 left-0.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(ct.id); }}
+                >
+                  ✕
+                </button>
               </button>
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
 
