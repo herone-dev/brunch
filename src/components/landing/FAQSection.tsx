@@ -4,6 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useScrollFadeIn } from "@/hooks/useScrollFadeIn";
 
 const FAQ_ITEMS = [
   {
@@ -41,21 +42,23 @@ const FAQ_ITEMS = [
 ];
 
 export default function FAQSection() {
+  const ref = useScrollFadeIn();
+
   return (
-    <section id="faq" className="max-w-3xl mx-auto px-6 py-20">
-      <h2 className="text-3xl md:text-4xl text-center mb-4">
+    <section id="faq" ref={ref} className="fade-in-section max-w-[680px] mx-auto px-5 py-24">
+      <h2 className="text-3xl md:text-[2.5rem] text-center mb-4">
         Vos vraies questions. <span className="text-primary">Nos vraies réponses.</span>
       </h2>
-      <p className="text-center text-muted-foreground mb-10">
+      <p className="text-center text-muted-foreground mb-10 text-base leading-[1.7]">
         Tout ce que vous devez savoir sur BRUNCH, votre carte digitale restaurant gratuite.
       </p>
       <Accordion type="single" collapsible className="w-full">
         {FAQ_ITEMS.map((item, i) => (
-          <AccordionItem key={i} value={`faq-${i}`}>
-            <AccordionTrigger className="text-left text-base">
+          <AccordionItem key={i} value={`faq-${i}`} className="border-b border-border py-1">
+            <AccordionTrigger className="text-left text-base font-semibold hover:no-underline py-5">
               {item.q}
             </AccordionTrigger>
-            <AccordionContent className="text-muted-foreground">
+            <AccordionContent className="text-[15px] text-muted-foreground leading-[1.7] pb-5">
               {item.a}
             </AccordionContent>
           </AccordionItem>

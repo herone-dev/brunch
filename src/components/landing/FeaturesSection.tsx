@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useScrollFadeIn } from "@/hooks/useScrollFadeIn";
 
 const FEATURES = [
   {
@@ -50,6 +51,7 @@ export default function FeaturesSection() {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const ActiveIcon = FEATURES[active].icon;
   const feature = FEATURES[active];
+  const ref = useScrollFadeIn();
 
   useEffect(() => {
     if (!isAutoPlaying) return;
@@ -69,15 +71,15 @@ export default function FeaturesSection() {
   const next = () => handleClick(active === FEATURES.length - 1 ? 0 : active + 1);
 
   return (
-    <section id="features" className="max-w-6xl mx-auto px-6 py-20">
-      <p className="text-center text-sm font-medium text-primary mb-2">
+    <section id="features" ref={ref} className="fade-in-section max-w-landing mx-auto px-5 py-24">
+      <p className="text-center text-[13px] font-medium text-primary mb-2 tracking-wide">
         🔧 Fonctionnalités
       </p>
-      <h2 className="text-3xl md:text-4xl text-center mb-4">
+      <h2 className="text-3xl md:text-[2.5rem] text-center mb-4">
         Tout ce qu'un menu digital moderne doit faire.{" "}
         <span className="text-primary">Inclus. Gratuit.</span>
       </h2>
-      <p className="text-center text-muted-foreground mb-16 max-w-2xl mx-auto">
+      <p className="text-center text-muted-foreground mb-16 max-w-[600px] mx-auto text-base leading-[1.7]">
         Chaque fonctionnalité a été pensée pour vous faire gagner du temps et offrir une expérience unique à vos clients.
       </p>
 
@@ -93,12 +95,12 @@ export default function FeaturesSection() {
                 className={`w-full text-left border-l-2 transition-all duration-300 px-6 py-5 ${
                   isActive
                     ? "border-l-primary bg-primary/5"
-                    : "border-l-border hover:border-l-muted-foreground hover:bg-muted/50"
+                    : "border-l-transparent hover:border-l-muted-foreground/30 hover:bg-muted/50"
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span
-                    className={`text-xs font-bold tabular-nums ${
+                    className={`text-[13px] font-bold tabular-nums tracking-wide ${
                       isActive ? "text-primary" : "text-muted-foreground"
                     }`}
                   >
@@ -117,7 +119,7 @@ export default function FeaturesSection() {
                     isActive ? "max-h-60 opacity-100 mt-3" : "max-h-0 opacity-0"
                   }`}
                 >
-                  <p className="text-sm text-muted-foreground leading-relaxed pl-8">
+                  <p className="text-[15px] text-muted-foreground leading-[1.65] pl-8">
                     {f.desc}
                   </p>
                 </div>
@@ -128,9 +130,9 @@ export default function FeaturesSection() {
 
         {/* Right: Visual card */}
         <div className="flex items-center justify-center sticky top-32">
-          <div className="w-full aspect-square max-w-md rounded-2xl bg-muted border border-border flex flex-col items-center justify-center gap-4 p-8 transition-all duration-500">
+          <div className="w-full aspect-square max-w-md rounded-2xl bg-background border border-border flex flex-col items-center justify-center gap-4 p-8 transition-all duration-500 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
             {feature.badge && (
-              <Badge className="mb-2">{feature.badge}</Badge>
+              <Badge className="mb-2 bg-primary/10 text-primary border-0 text-xs">{feature.badge}</Badge>
             )}
             <ActiveIcon className="h-20 w-20 text-primary/40" />
             <p className="text-sm font-medium text-primary text-center">
@@ -149,15 +151,15 @@ export default function FeaturesSection() {
                 {feature.ctaText}
               </Link>
             )}
-            <p className="text-xs text-muted-foreground">
-              Étape 0{active + 1}/{FEATURES.length}
+            <p className="text-[12px] text-muted-foreground bg-primary/10 text-primary px-3 py-1 rounded-full">
+              0{active + 1}/{FEATURES.length}
             </p>
 
             {/* Nav arrows */}
             <div className="flex items-center gap-3 mt-2">
               <button
                 onClick={prev}
-                className="p-2 rounded-full bg-background border border-border hover:bg-muted transition"
+                className="p-2 rounded-full bg-background border border-border hover:bg-muted transition-all duration-200 hover:-translate-y-0.5"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -174,7 +176,7 @@ export default function FeaturesSection() {
               </div>
               <button
                 onClick={next}
-                className="p-2 rounded-full bg-background border border-border hover:bg-muted transition"
+                className="p-2 rounded-full bg-background border border-border hover:bg-muted transition-all duration-200 hover:-translate-y-0.5"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -184,7 +186,7 @@ export default function FeaturesSection() {
       </div>
 
       <div className="text-center mt-12">
-        <Button size="lg" asChild>
+        <Button size="lg" className="h-12 px-7 rounded-[10px] font-semibold hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200" asChild>
           <Link to="/signup">
             Commencer maintenant
             <ArrowRight className="ml-2 h-4 w-4" />
