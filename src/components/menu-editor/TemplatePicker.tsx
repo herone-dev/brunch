@@ -253,27 +253,32 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId, onL
               {onLogoUpload && <input type="file" accept="image/*" onChange={onLogoUpload} className="hidden" />}
             </label>
             {design.logoUrl && (
-              <div>
-                <Label className="text-[10px] text-muted-foreground mb-1 block">Position du logo (couverture)</Label>
-                <div className="flex rounded-md overflow-hidden border border-border">
-                  {([
-                    { id: 'left' as LogoPosition, label: '← Gauche' },
-                    { id: 'center' as LogoPosition, label: '↔ Centre' },
-                    { id: 'right' as LogoPosition, label: '→ Droite' },
-                  ]).map(opt => (
-                    <button
-                      key={opt.id}
-                      className={`flex-1 py-1.5 text-[10px] font-medium transition-colors ${
-                        (design.logoPosition || 'center') === opt.id
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-card text-muted-foreground hover:bg-muted'
-                      }`}
-                      onClick={() => onChange({ ...design, logoPosition: opt.id })}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+              <div className="space-y-1.5">
+                <ToggleRow label="Afficher le logo" checked={design.showLogo ?? true} onChange={v => onChange({ ...design, showLogo: v })} />
+                {(design.showLogo ?? true) && (
+                  <div>
+                    <Label className="text-[10px] text-muted-foreground mb-1 block">Position du logo (couverture)</Label>
+                    <div className="flex rounded-md overflow-hidden border border-border">
+                      {([
+                        { id: 'left' as LogoPosition, label: '← Gauche' },
+                        { id: 'center' as LogoPosition, label: '↔ Centre' },
+                        { id: 'right' as LogoPosition, label: '→ Droite' },
+                      ]).map(opt => (
+                        <button
+                          key={opt.id}
+                          className={`flex-1 py-1.5 text-[10px] font-medium transition-colors ${
+                            (design.logoPosition || 'center') === opt.id
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-card text-muted-foreground hover:bg-muted'
+                          }`}
+                          onClick={() => onChange({ ...design, logoPosition: opt.id })}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
