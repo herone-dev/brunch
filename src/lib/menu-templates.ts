@@ -1,10 +1,31 @@
+export type MenuFormat = 'portrait' | 'landscape' | 'book';
+
+export interface AdvancedPageSettings {
+  backgroundImageUrl?: string;
+  backgroundOpacity?: number; // 0-1
+  showLogo?: boolean;
+  showAddress?: boolean;
+  showPhone?: boolean;
+  showEmail?: boolean;
+  showWebsite?: boolean;
+  showSocials?: boolean;
+  customText?: string;
+}
+
 export interface MenuDesign {
   templateId: string;
+  format?: MenuFormat;
   coverTitle?: string;
   coverSubtitle?: string;
   logoUrl?: string;
   overrides?: Partial<TemplateStyles>;
   elementStyles?: Record<string, import('@/components/menu-editor/FloatingToolbar').ElementStyle>;
+  // Advanced mode
+  advancedMode?: boolean;
+  firstPage?: AdvancedPageSettings;
+  lastPage?: AdvancedPageSettings;
+  header?: AdvancedPageSettings;
+  footer?: AdvancedPageSettings;
 }
 
 export interface TemplateStyles {
