@@ -8,7 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { Upload, Image, FileText, Layers } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { MenuDesign, AdvancedPageSettings } from '@/lib/menu-templates';
+import type { MenuDesign, AdvancedPageSettings, LogoPosition } from '@/lib/menu-templates';
 import type { Restaurant } from '@/lib/types';
 
 interface Props {
@@ -16,6 +16,7 @@ interface Props {
   onChange: (design: MenuDesign) => void;
   restaurant: Restaurant | null;
   restaurantId: string;
+  onLogoUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 type PageSection = 'firstPage' | 'lastPage';
@@ -25,7 +26,7 @@ const SECTION_LABELS: Record<PageSection, { label: string; icon: string }> = {
   lastPage: { label: 'Dernière page', icon: '📃' },
 };
 
-export function AdvancedDesignPanel({ design, onChange, restaurant, restaurantId }: Props) {
+export function AdvancedDesignPanel({ design, onChange, restaurant, restaurantId, onLogoUpload }: Props) {
   const [activeSection, setActiveSection] = useState<PageSection>('firstPage');
   const [uploading, setUploading] = useState(false);
 
@@ -129,6 +130,53 @@ export function AdvancedDesignPanel({ design, onChange, restaurant, restaurantId
         )}
       </div>
 
+      {/* Logo */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium flex items-center gap-1.5">
+          <Image className="h-3.5 w-3.5" /> Logo
+        </p>
+        <label className="flex items-center gap-2 p-2 border border-dashed border-border rounded-md cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all">
+          {design.logoUrl ? (
+            <img src={design.logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded shrink-0" />
+          ) : (
+            <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+          )}
+          <span className="text-[10px] text-muted-foreground flex-1">
+            {design.logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
+          </span>
+          {onLogoUpload && <input type="file" accept="image/*" onChange={onLogoUpload} className="hidden" />}
+        </label>
+        {design.logoUrl && (
+          <div className="space-y-1.5">
+            <ToggleRow label="Afficher le logo" checked={settings.showLogo ?? (activeSection === 'firstPage')} onChange={v => updateSettings(activeSection, { showLogo: v })} />
+            {settings.showLogo && (
+              <div>
+                <Label className="text-[10px] text-muted-foreground mb-1 block">Position</Label>
+                <div className="flex rounded-md overflow-hidden border border-border">
+                  {([
+                    { id: 'left' as LogoPosition, label: '← Gauche' },
+                    { id: 'center' as LogoPosition, label: '↔ Centre' },
+                    { id: 'right' as LogoPosition, label: '→ Droite' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.id}
+                      className={`flex-1 py-1.5 text-[10px] font-medium transition-colors ${
+                        (settings.logoPosition || 'center') === opt.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-card text-muted-foreground hover:bg-muted'
+                      }`}
+                      onClick={() => updateSettings(activeSection, { logoPosition: opt.id })}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Restaurant info toggles */}
       {(activeSection === 'firstPage' || activeSection === 'lastPage') && (
         <div className="space-y-2">
@@ -136,7 +184,6 @@ export function AdvancedDesignPanel({ design, onChange, restaurant, restaurantId
             <FileText className="h-3.5 w-3.5" /> Informations affichées
           </p>
           <div className="space-y-1.5">
-            <ToggleRow label="Logo" checked={settings.showLogo ?? (activeSection === 'firstPage')} onChange={v => updateSettings(activeSection, { showLogo: v })} />
             <ToggleRow label="Adresse" checked={settings.showAddress ?? false} onChange={v => updateSettings(activeSection, { showAddress: v })} available={!!restaurant?.address} />
             <ToggleRow label="Téléphone" checked={settings.showPhone ?? false} onChange={v => updateSettings(activeSection, { showPhone: v })} available={!!restaurant?.phone} />
             <ToggleRow label="Email" checked={settings.showEmail ?? false} onChange={v => updateSettings(activeSection, { showEmail: v })} available={!!restaurant?.email} />
