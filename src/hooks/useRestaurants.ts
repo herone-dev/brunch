@@ -58,6 +58,31 @@ export function useCreateRestaurant() {
 
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['my-restaurants'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-restaurants'] });
+      qc.invalidateQueries({ queryKey: ['my-restaurant'] });
+    },
+  });
+}
+
+export function useCreateMenu() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { restaurantId: string; name: string }) => {
+      const { data, error } = await supabase
+        .from('menus')
+        .insert({
+          restaurant_id: input.restaurantId,
+          name: input.name,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['restaurant-menus', vars.restaurantId] });
+    },
   });
 }

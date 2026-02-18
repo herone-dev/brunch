@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useMyRestaurant, useRestaurantMenus, useRestaurantItems, useModelJobs } from "@/hooks/useDashboard";
-import { useCreateRestaurant } from "@/hooks/useRestaurants";
+import { useMyRestaurant, useRestaurantMenus, useRestaurantItems, useModelJobs, useQrScanCount } from "@/hooks/useDashboard";
+import { useCreateRestaurant, useCreateMenu } from "@/hooks/useRestaurants";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
   LogOut, QrCode, Pencil, Plus, UtensilsCrossed,
   Box, CheckCircle2, Clock, AlertCircle, Loader2,
   FileText, Eye, EyeOff, Settings, Image as ImageIcon,
+  ExternalLink, ScanLine, MoreVertical, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ItemWithDetails, Menu, ModelJob } from "@/lib/types";
@@ -86,7 +87,7 @@ const OnboardingDialog = ({ open, onCreated }: { open: boolean; onCreated: (id: 
 };
 
 /* ─── Menu card ─── */
-const MenuCard = ({ menu, restaurantId }: { menu: Menu; restaurantId: string }) => (
+const MenuCard = ({ menu, restaurantId, slug }: { menu: Menu; restaurantId: string; slug: string }) => (
   <Card className="group hover:border-primary/40 transition-all hover:shadow-sm">
     <CardContent className="flex items-center justify-between p-4">
       <div className="flex items-center gap-3">
@@ -107,11 +108,20 @@ const MenuCard = ({ menu, restaurantId }: { menu: Menu; restaurantId: string }) 
           </div>
         </div>
       </div>
-      <Button size="sm" variant="outline" asChild>
-        <Link to={`/app/restaurants/${restaurantId}/menu`}>
-          <Pencil className="h-3.5 w-3.5 mr-1.5" /> Éditer
-        </Link>
-      </Button>
+      <div className="flex items-center gap-2">
+        {menu.status === "published" && (
+          <Button size="sm" variant="ghost" asChild>
+            <Link to={`/m/${slug}`} target="_blank">
+              <ExternalLink className="h-3.5 w-3.5 mr-1" /> Voir
+            </Link>
+          </Button>
+        )}
+        <Button size="sm" variant="outline" asChild>
+          <Link to={`/app/restaurants/${restaurantId}/menu`}>
+            <Pencil className="h-3.5 w-3.5 mr-1.5" /> Éditer
+          </Link>
+        </Button>
+      </div>
     </CardContent>
   </Card>
 );
@@ -181,6 +191,10 @@ const Dashboard = () => {
   const { data: menus, isLoading: menusLoading } = useRestaurantMenus(restaurant?.id);
   const { data: items, isLoading: itemsLoading } = useRestaurantItems(restaurant?.id);
   const { data: modelJobs } = useModelJobs(restaurant?.id);
+  const { data: qrScans } = useQrScanCount(restaurant?.id);
+  const createMenu = useCreateMenu();
+  const [showNewMenu, setShowNewMenu] = useState(false);
+  const [newMenuName, setNewMenuName] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
@@ -250,7 +264,7 @@ const Dashboard = () => {
 
             <TabsContent value="dashboard" className="space-y-8 mt-0">
               {/* ── Stats row ── */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <Card>
                   <CardContent className="p-4 text-center">
                     <p className="text-2xl font-bold">{menus?.length || 0}</p>
@@ -265,14 +279,23 @@ const Dashboard = () => {
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-bold text-green-600">{readyModels}</p>
+                    <p className="text-2xl font-bold">{readyModels}</p>
                     <p className="text-xs text-muted-foreground">Modèles 3D prêts</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-2xl font-bold text-amber-500">{pendingModels}</p>
+                    <p className="text-2xl font-bold">{pendingModels}</p>
                     <p className="text-xs text-muted-foreground">En cours de génération</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <ScanLine className="h-5 w-5 text-primary" />
+                      <p className="text-2xl font-bold">{qrScans ?? 0}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Scans QR Code</p>
                   </CardContent>
                 </Card>
               </div>
@@ -281,6 +304,9 @@ const Dashboard = () => {
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold">Mes menus</h2>
+                  <Button size="sm" onClick={() => setShowNewMenu(true)}>
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Nouveau menu
+                  </Button>
                 </div>
                 {menusLoading ? (
                   <div className="space-y-3">
@@ -291,16 +317,50 @@ const Dashboard = () => {
                     <CardContent className="py-8 text-center">
                       <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
                       <p className="text-sm text-muted-foreground">Aucun menu créé</p>
+                      <Button size="sm" className="mt-3" onClick={() => setShowNewMenu(true)}>
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> Créer un menu
+                      </Button>
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="space-y-3">
                     {menus.map((m) => (
-                      <MenuCard key={m.id} menu={m} restaurantId={restaurant.id} />
+                      <MenuCard key={m.id} menu={m} restaurantId={restaurant.id} slug={restaurant.slug} />
                     ))}
                   </div>
                 )}
               </section>
+
+              {/* ── Create menu dialog ── */}
+              <Dialog open={showNewMenu} onOpenChange={setShowNewMenu}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Nouveau menu</DialogTitle>
+                  </DialogHeader>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        await createMenu.mutateAsync({ restaurantId: restaurant.id, name: newMenuName });
+                        toast.success("Menu créé !");
+                        setNewMenuName("");
+                        setShowNewMenu(false);
+                      } catch (err: any) {
+                        toast.error(err.message || "Erreur");
+                      }
+                    }}
+                    className="space-y-4 pt-2"
+                  >
+                    <div className="space-y-2">
+                      <Label>Nom du menu</Label>
+                      <Input value={newMenuName} onChange={(e) => setNewMenuName(e.target.value)} placeholder="Menu du soir" required />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={createMenu.isPending}>
+                      {createMenu.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Création...</> : "Créer"}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
 
               {/* ── 3D Generation section ── */}
               <section>
