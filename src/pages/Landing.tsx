@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { QrCode, Globe, UtensilsCrossed, Sparkles, Clock, Camera, ArrowRight, Star, TrendingUp, TrendingDown, ShoppingCart } from "lucide-react";
+import { QrCode, Globe, UtensilsCrossed, Sparkles, Clock, Camera, ArrowRight, ArrowLeft, Star, TrendingUp, TrendingDown, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import heroPhones from "@/assets/hero-phones.png";
 
