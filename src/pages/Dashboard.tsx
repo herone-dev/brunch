@@ -157,18 +157,18 @@ const MenuCard = ({ menu, restaurantId, slug }: { menu: Menu; restaurantId: stri
   );
 };
 
-/* ─── 3D item row ─── */
+/* ─── 3D status helpers ─── */
 const ModelStatusIcon = ({ status }: { status: string }) => {
   switch (status) {
     case "ready":
-      return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      return <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />;
     case "processing":
     case "pending":
-      return <Clock className="h-4 w-4 text-amber-500 animate-pulse" />;
+      return <Clock className="h-3.5 w-3.5 text-amber-500 animate-pulse" />;
     case "failed":
-      return <AlertCircle className="h-4 w-4 text-destructive" />;
+      return <AlertCircle className="h-3.5 w-3.5 text-destructive" />;
     default:
-      return <Box className="h-4 w-4 text-muted-foreground" />;
+      return <Box className="h-3.5 w-3.5 text-muted-foreground" />;
   }
 };
 
@@ -180,35 +180,32 @@ const modelStatusLabel: Record<string, string> = {
   failed: "Erreur",
 };
 
-const ItemModelRow = ({ item }: { item: ItemWithDetails }) => {
+/* ─── Item card (library style) ─── */
+const ItemCard = ({ item }: { item: ItemWithDetails }) => {
   const frName = item.translations.find((t) => t.lang === "fr")?.name || "Sans nom";
   const status = item.model?.status || "none";
   const hasMedia = item.media.length > 0;
 
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors">
-      <div className="flex items-center gap-3">
+    <div className="rounded-lg border border-border bg-card overflow-hidden hover:border-primary/40 transition-all hover:shadow-sm group">
+      <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
         {hasMedia ? (
-          <div className="h-9 w-9 rounded-md overflow-hidden bg-muted">
-            <img
-              src={supabase.storage.from("menu-media").getPublicUrl(item.media[0].storage_path).data.publicUrl}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          </div>
+          <img
+            src={supabase.storage.from("menu-media").getPublicUrl(item.media[0].storage_path).data.publicUrl}
+            alt={frName}
+            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
         ) : (
-          <div className="h-9 w-9 rounded-md bg-muted flex items-center justify-center">
-            <ImageIcon className="h-4 w-4 text-muted-foreground" />
-          </div>
+          <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
         )}
-        <div>
-          <p className="text-sm font-medium leading-tight">{frName}</p>
-          <p className="text-[10px] text-muted-foreground">{(item.price_cents / 100).toFixed(2)} €</p>
-        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <ModelStatusIcon status={status} />
-        <span className="text-xs text-muted-foreground">{modelStatusLabel[status]}</span>
+      <div className="p-2.5">
+        <p className="text-xs font-medium truncate">{frName}</p>
+        <p className="text-[10px] text-muted-foreground">{(item.price_cents / 100).toFixed(2)} €</p>
+        <div className="flex items-center gap-1 mt-1.5">
+          <ModelStatusIcon status={status} />
+          <span className="text-[10px] text-muted-foreground">{modelStatusLabel[status]}</span>
+        </div>
       </div>
     </div>
   );
@@ -425,8 +422,8 @@ const Dashboard = () => {
                 )}
 
                 {itemsLoading ? (
-                  <div className="space-y-2">
-                    {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                    {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="aspect-square rounded-lg" />)}
                   </div>
                 ) : !items?.length ? (
                   <Card>
@@ -436,13 +433,11 @@ const Dashboard = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <Card>
-                    <CardContent className="p-2 divide-y divide-border">
-                      {items.map((item) => (
-                        <ItemModelRow key={item.id} item={item} />
-                      ))}
-                    </CardContent>
-                  </Card>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                    {items.map((item) => (
+                      <ItemCard key={item.id} item={item} />
+                    ))}
+                  </div>
                 )}
               </section>
             </TabsContent>
