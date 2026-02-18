@@ -1,8 +1,8 @@
-import { type MenuDesign, type MenuFormat, getTemplate, getEffectiveStyles } from '@/lib/menu-templates';
+import { type MenuDesign, getEffectiveStyles } from '@/lib/menu-templates';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Palette, Type, Paintbrush, FileText, BookOpen, Maximize2 } from 'lucide-react';
+import { Palette, Type, Paintbrush } from 'lucide-react';
 import type { Restaurant } from '@/lib/types';
 
 interface Props {
@@ -68,29 +68,6 @@ export function EditorToolbar({ design, onChange }: Props) {
       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
         <Palette className="h-3.5 w-3.5" /> Personnalisation
       </h4>
-
-      {/* Format selector */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Format</p>
-        <div className="grid grid-cols-3 gap-1.5">
-          {([
-            { id: 'portrait' as MenuFormat, label: 'Portrait', icon: '📄' },
-            { id: 'landscape' as MenuFormat, label: 'Paysage', icon: '🖼️' },
-            { id: 'book' as MenuFormat, label: 'Livre', icon: '📖' },
-          ]).map(f => (
-            <Button
-              key={f.id}
-              size="sm"
-              variant={(design.format || 'portrait') === f.id ? 'default' : 'outline'}
-              className="text-[10px] h-8 flex flex-col gap-0.5 py-1"
-              onClick={() => onChange({ ...design, format: f.id })}
-            >
-              <span className="text-sm">{f.icon}</span>
-              <span>{f.label}</span>
-            </Button>
-          ))}
-        </div>
-      </div>
 
       {/* Cover settings */}
       <div className="space-y-3">
