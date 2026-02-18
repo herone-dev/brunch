@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MENU_TEMPLATES, type MenuDesign, type AdvancedPageSettings, type IconStyle, type LogoPosition } from '@/lib/menu-templates';
+import { MENU_TEMPLATES, type MenuDesign, type AdvancedPageSettings, type IconStyle, type LogoPosition, type NavStyle } from '@/lib/menu-templates';
 import { Check, Save, Trash2, ChevronDown, ChevronUp, Upload, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -294,6 +294,31 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId, onL
               <ToggleRow label="Réseaux" checked={hfSettings.showSocials ?? false} onChange={v => updateHFSettings(activeHFSection, { showSocials: v })} available={!!(restaurant?.instagram || restaurant?.facebook || restaurant?.tiktok)} />
               <ToggleRow label="Navigation" checked={hfSettings.showNavigation ?? false} onChange={v => updateHFSettings(activeHFSection, { showNavigation: v })} />
             </div>
+            {hfSettings.showNavigation && (
+              <div className="mt-1.5">
+                <Label className="text-[10px] text-muted-foreground mb-1 block">Style de navigation</Label>
+                <div className="grid grid-cols-2 gap-1">
+                  {([
+                    { id: 'simple' as NavStyle, label: 'Simple' },
+                    { id: 'pills' as NavStyle, label: 'Pilules' },
+                    { id: 'underline' as NavStyle, label: 'Souligné' },
+                    { id: 'separator' as NavStyle, label: 'Séparateur •' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.id}
+                      className={`py-1.5 text-[10px] font-medium rounded-md border transition-colors ${
+                        (hfSettings.navStyle || 'simple') === opt.id
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card text-muted-foreground border-border hover:bg-muted'
+                      }`}
+                      onClick={() => updateHFSettings(activeHFSection, { navStyle: opt.id })}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           {/* Background image */}
           <div className="space-y-1.5">
