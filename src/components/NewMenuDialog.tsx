@@ -295,7 +295,7 @@ export function NewMenuDialog({ open, onOpenChange, restaurantId, onMenuCreated 
         {/* ── Camera step ── */}
         {step === 'camera' && (
           <div className="relative">
-            <div className="relative bg-black aspect-[3/4] sm:aspect-video overflow-hidden">
+            <div className="relative bg-black aspect-[3/4] overflow-hidden">
               <video
                 ref={videoRef}
                 autoPlay
