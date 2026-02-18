@@ -16,6 +16,7 @@ interface Props {
   onChange: (design: MenuDesign) => void;
   restaurant?: Restaurant | null;
   restaurantId?: string;
+  onLogoUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 type HeaderFooterSection = 'header' | 'footer';
@@ -26,7 +27,7 @@ interface CustomTemplate {
   design_json: MenuDesign;
 }
 
-export function TemplatePicker({ design, onChange, restaurant, restaurantId }: Props) {
+export function TemplatePicker({ design, onChange, restaurant, restaurantId, onLogoUpload }: Props) {
   const [saveName, setSaveName] = useState('');
   const [saving, setSaving] = useState(false);
   const [showSaveInput, setShowSaveInput] = useState(false);
@@ -235,17 +236,23 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
             ))}
           </div>
 
-          {/* Info toggles - compact grid */}
+          {/* Logo upload + toggle */}
           <div className="space-y-1.5">
-            <p className="text-[11px] font-medium text-foreground">Éléments à afficher</p>
-            <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-              <ToggleRow label="Logo" checked={hfSettings.showLogo ?? false} onChange={v => updateHFSettings(activeHFSection, { showLogo: v })} available={!!design.logoUrl} />
-              <ToggleRow label="Adresse" checked={hfSettings.showAddress ?? false} onChange={v => updateHFSettings(activeHFSection, { showAddress: v })} available={!!restaurant?.address} />
-              <ToggleRow label="Téléphone" checked={hfSettings.showPhone ?? false} onChange={v => updateHFSettings(activeHFSection, { showPhone: v })} available={!!restaurant?.phone} />
-              <ToggleRow label="Email" checked={hfSettings.showEmail ?? false} onChange={v => updateHFSettings(activeHFSection, { showEmail: v })} available={!!restaurant?.email} />
-              <ToggleRow label="Site web" checked={hfSettings.showWebsite ?? false} onChange={v => updateHFSettings(activeHFSection, { showWebsite: v })} available={!!restaurant?.website} />
-              <ToggleRow label="Réseaux" checked={hfSettings.showSocials ?? false} onChange={v => updateHFSettings(activeHFSection, { showSocials: v })} available={!!(restaurant?.instagram || restaurant?.facebook || restaurant?.tiktok)} />
-            </div>
+            <p className="text-[11px] font-medium text-foreground">Logo</p>
+            <label className="flex items-center gap-2 p-2 border border-dashed border-border rounded-md cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all">
+              {design.logoUrl ? (
+                <img src={design.logoUrl} alt="Logo" className="w-8 h-8 object-contain rounded shrink-0" />
+              ) : (
+                <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+              )}
+              <span className="text-[10px] text-muted-foreground flex-1">
+                {design.logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
+              </span>
+              {onLogoUpload && <input type="file" accept="image/*" onChange={onLogoUpload} className="hidden" />}
+            </label>
+            {design.logoUrl && (
+              <ToggleRow label="Afficher le logo" checked={hfSettings.showLogo ?? false} onChange={v => updateHFSettings(activeHFSection, { showLogo: v })} />
+            )}
           </div>
 
           {/* Logo position */}
@@ -274,6 +281,17 @@ export function TemplatePicker({ design, onChange, restaurant, restaurantId }: P
             </div>
           )}
 
+          {/* Info toggles */}
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium text-foreground">Informations</p>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+              <ToggleRow label="Adresse" checked={hfSettings.showAddress ?? false} onChange={v => updateHFSettings(activeHFSection, { showAddress: v })} available={!!restaurant?.address} />
+              <ToggleRow label="Téléphone" checked={hfSettings.showPhone ?? false} onChange={v => updateHFSettings(activeHFSection, { showPhone: v })} available={!!restaurant?.phone} />
+              <ToggleRow label="Email" checked={hfSettings.showEmail ?? false} onChange={v => updateHFSettings(activeHFSection, { showEmail: v })} available={!!restaurant?.email} />
+              <ToggleRow label="Site web" checked={hfSettings.showWebsite ?? false} onChange={v => updateHFSettings(activeHFSection, { showWebsite: v })} available={!!restaurant?.website} />
+              <ToggleRow label="Réseaux" checked={hfSettings.showSocials ?? false} onChange={v => updateHFSettings(activeHFSection, { showSocials: v })} available={!!(restaurant?.instagram || restaurant?.facebook || restaurant?.tiktok)} />
+            </div>
+          </div>
           {/* Background image */}
           <div className="space-y-1.5">
             <p className="text-[11px] font-medium text-foreground">Image de fond</p>
