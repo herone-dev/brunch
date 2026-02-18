@@ -181,13 +181,13 @@ const modelStatusLabel: Record<string, string> = {
 };
 
 /* ─── Item card (library style) ─── */
-const ItemCard = ({ item }: { item: ItemWithDetails }) => {
+const ItemCard = ({ item, compact }: { item: ItemWithDetails; compact?: boolean }) => {
   const frName = item.translations.find((t) => t.lang === "fr")?.name || "Sans nom";
   const status = item.model?.status || "none";
   const hasMedia = item.media.length > 0;
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden hover:border-primary/40 transition-all hover:shadow-sm group">
+    <div className={`rounded-lg border border-border bg-card overflow-hidden hover:border-primary/40 transition-all hover:shadow-sm group ${compact ? 'shrink-0 w-28' : ''}`}>
       <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
         {hasMedia ? (
           <img
@@ -199,10 +199,9 @@ const ItemCard = ({ item }: { item: ItemWithDetails }) => {
           <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
         )}
       </div>
-      <div className="p-2.5">
-        <p className="text-xs font-medium truncate">{frName}</p>
-        <p className="text-[10px] text-muted-foreground">{(item.price_cents / 100).toFixed(2)} €</p>
-        <div className="flex items-center gap-1 mt-1.5">
+      <div className="p-2">
+        <p className="text-[11px] font-medium truncate">{frName}</p>
+        <div className="flex items-center gap-1 mt-1">
           <ModelStatusIcon status={status} />
           <span className="text-[10px] text-muted-foreground">{modelStatusLabel[status]}</span>
         </div>
@@ -223,6 +222,7 @@ const Dashboard = () => {
   const createMenu = useCreateMenu();
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [newMenuName, setNewMenuName] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
@@ -282,9 +282,12 @@ const Dashboard = () => {
 
       {restaurant && (
         <main className="max-w-5xl mx-auto px-6 py-8">
-          <Tabs defaultValue="dashboard" className="space-y-6">
-            <TabsList className="w-full max-w-md">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="w-full max-w-lg">
               <TabsTrigger value="dashboard" className="flex-1">Dashboard</TabsTrigger>
+              <TabsTrigger value="library" className="flex-1 flex items-center gap-1.5">
+                <Box className="h-3.5 w-3.5" /> Bibliothèque 3D
+              </TabsTrigger>
               <TabsTrigger value="settings" className="flex-1 flex items-center gap-1.5">
                 <Settings className="h-3.5 w-3.5" /> Mon restaurant
               </TabsTrigger>
@@ -390,7 +393,7 @@ const Dashboard = () => {
                 </DialogContent>
               </Dialog>
 
-              {/* ── 3D Generation section ── */}
+              {/* ── 3D Preview (single row) ── */}
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -398,48 +401,79 @@ const Dashboard = () => {
                       <Box className="h-5 w-5" /> Modèles 3D
                     </h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Visualisez l'état de génération 3D de chaque plat
+                      {readyModels} prêts · {pendingModels} en cours · {totalItems} plats
                     </p>
                   </div>
+                  <Button size="sm" variant="outline" onClick={() => setActiveTab("library")}>
+                    Voir la bibliothèque
+                  </Button>
                 </div>
 
-                {totalItems > 0 && (
-                  <Card className="mb-4">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">Progression globale</span>
-                        <span className="text-sm font-bold text-primary">{progress3D}%</span>
-                      </div>
-                      <Progress value={progress3D} className="h-2" />
-                      <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
-                        <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-500" /> {readyModels} prêts</span>
-                        <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-amber-500" /> {pendingModels} en cours</span>
-                        <span className="flex items-center gap-1"><AlertCircle className="h-3 w-3 text-destructive" /> {failedModels} erreurs</span>
-                        <span className="flex items-center gap-1"><Box className="h-3 w-3" /> {noModels} sans modèle</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {/* First card = create new 3D model CTA */}
+                  <div
+                    onClick={() => setActiveTab("library")}
+                    className="shrink-0 w-28 aspect-square rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:border-primary/60 hover:bg-primary/10 transition-colors"
+                  >
+                    <Plus className="h-6 w-6 text-primary" />
+                    <span className="text-[10px] font-medium text-primary">Nouveau 3D</span>
+                  </div>
 
-                {itemsLoading ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-                    {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="aspect-square rounded-lg" />)}
-                  </div>
-                ) : !items?.length ? (
-                  <Card>
-                    <CardContent className="py-8 text-center">
-                      <Box className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                      <p className="text-sm text-muted-foreground">Ajoutez des plats dans un menu pour commencer la génération 3D</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-                    {items.map((item) => (
-                      <ItemCard key={item.id} item={item} />
-                    ))}
-                  </div>
-                )}
+                  {/* Preview of first items */}
+                  {items?.slice(0, 5).map((item) => (
+                    <ItemCard key={item.id} item={item} compact />
+                  ))}
+                </div>
               </section>
+            </TabsContent>
+
+            {/* ── Bibliothèque 3D tab ── */}
+            <TabsContent value="library" className="space-y-6 mt-0">
+              <div>
+                <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
+                  <Box className="h-5 w-5" /> Bibliothèque 3D
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Tous vos plats et leurs modèles 3D
+                </p>
+              </div>
+
+              {totalItems > 0 && (
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Progression globale</span>
+                      <span className="text-sm font-bold text-primary">{progress3D}%</span>
+                    </div>
+                    <Progress value={progress3D} className="h-2" />
+                    <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-500" /> {readyModels} prêts</span>
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-amber-500" /> {pendingModels} en cours</span>
+                      <span className="flex items-center gap-1"><AlertCircle className="h-3 w-3 text-destructive" /> {failedModels} erreurs</span>
+                      <span className="flex items-center gap-1"><Box className="h-3 w-3" /> {noModels} sans modèle</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {itemsLoading ? (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                  {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="aspect-square rounded-lg" />)}
+                </div>
+              ) : !items?.length ? (
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <Box className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">Ajoutez des plats dans un menu pour commencer la génération 3D</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                  {items.map((item) => (
+                    <ItemCard key={item.id} item={item} />
+                  ))}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="settings" className="mt-0">
