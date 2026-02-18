@@ -1,11 +1,15 @@
+import { useScrollFadeIn } from "@/hooks/useScrollFadeIn";
+
 export default function ProblemSection() {
+  const ref = useScrollFadeIn();
+
   return (
-    <section className="max-w-3xl mx-auto px-6 py-20">
-      <h2 className="text-3xl md:text-4xl text-center mb-8">
+    <section ref={ref} className="fade-in-section max-w-3xl mx-auto px-5 py-24">
+      <h2 className="text-3xl md:text-[2.5rem] text-center mb-8">
         Vous en avez marre de courir chez l'imprimeur{" "}
         <span className="text-primary">à chaque changement de prix ?</span>
       </h2>
-      <div className="space-y-4 text-muted-foreground text-center text-lg leading-relaxed">
+      <div className="space-y-4 text-muted-foreground text-center text-base leading-[1.7] max-w-[600px] mx-auto">
         <p>
           Un fournisseur en rupture. Un plat qui change. Une promotion de dernière minute.
         </p>

@@ -5,11 +5,11 @@ import { ArrowRight } from "lucide-react";
 export default function FinalCTASection() {
   return (
     <section className="bg-primary text-primary-foreground">
-      <div className="max-w-4xl mx-auto px-6 py-20 text-center space-y-6">
-        <h2 className="text-3xl md:text-4xl text-primary-foreground">
+      <div className="max-w-4xl mx-auto px-5 py-24 text-center space-y-6">
+        <h2 className="text-3xl md:text-[2.75rem] text-white !text-white">
           2 minutes pour tester. Une vie sans imprimeur.
         </h2>
-        <div className="text-primary-foreground/80 text-lg space-y-1">
+        <div className="text-white/80 text-[17px] space-y-1 leading-[1.65]">
           <p>Dans 5 minutes, votre carte interactive est en ligne.</p>
           <p>Dans 7 minutes, vos plats sont visibles en 3D.</p>
           <p>Dans 30 secondes, vous comprendrez pourquoi +1 000 restaurants ont choisi BRUNCH.</p>
@@ -18,7 +18,7 @@ export default function FinalCTASection() {
           <Button
             size="lg"
             variant="secondary"
-            className="text-base px-8"
+            className="h-12 px-8 rounded-[10px] text-base font-semibold bg-white text-primary hover:bg-white/90 hover:scale-[1.02] hover:shadow-lg transition-all duration-200"
             asChild
           >
             <Link to="/signup">
@@ -29,13 +29,13 @@ export default function FinalCTASection() {
           <Button
             size="lg"
             variant="outline"
-            className="text-base border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10"
+            className="h-12 text-base rounded-[10px] border-white/30 text-white hover:bg-white/10"
             asChild
           >
             <Link to="/m/demo">Voir un vrai menu</Link>
           </Button>
         </div>
-        <p className="text-xs text-primary-foreground/60">
+        <p className="text-[13px] text-white/60 tracking-wide">
           ✅ Gratuit pour toujours · ✅ Sans CB · ✅ Sans engagement · ✅ 3D incluse
         </p>
       </div>
