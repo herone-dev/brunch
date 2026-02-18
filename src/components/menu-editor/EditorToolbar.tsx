@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { type MenuDesign, getEffectiveStyles } from '@/lib/menu-templates';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Palette, Type, Paintbrush } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Palette, Type, Paintbrush, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Restaurant } from '@/lib/types';
 
 interface Props {
@@ -25,10 +27,6 @@ const FONT_OPTIONS = [
 ];
 
 const BG_PRESETS = [
-  { label: 'Noir profond', value: '#0a0a0f' },
-  { label: 'Bleu nuit', value: '#1a1a2e' },
-  { label: 'Vert forêt', value: '#1a2e1a' },
-  { label: 'Bordeaux', value: '#2e1a1a' },
   { label: 'Crème', value: '#f5f0e8' },
   { label: 'Blanc', value: '#ffffff' },
   { label: 'Gris clair', value: '#f8f9fa' },
@@ -38,19 +36,30 @@ const BG_PRESETS = [
 const GRADIENT_PRESETS = [
   { label: 'Nuit étoilée', value: 'linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 100%)' },
   { label: 'Bois foncé', value: 'linear-gradient(180deg, #2c1810 0%, #4a2c20 100%)' },
-  { label: 'Coucher de soleil', value: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #a8edea 100%)' },
   { label: 'Océan', value: 'linear-gradient(180deg, #0c3547 0%, #204051 100%)' },
   { label: 'Doré', value: 'linear-gradient(180deg, #1a1510 0%, #2a2015 100%)' },
-  { label: 'Émeraude', value: 'linear-gradient(180deg, #0a1a0f 0%, #1a3020 100%)' },
-  { label: 'Minuit', value: 'linear-gradient(180deg, #111111 0%, #1a1a1a 100%)' },
-  { label: 'Pastel', value: 'linear-gradient(135deg, #fce4ec 0%, #e8f5e9 100%)' },
 ];
 
-// Extract a usable color from a gradient or solid color for the color input
 function extractColor(bg: string): string {
   if (bg.startsWith('#')) return bg;
   const match = bg.match(/#[0-9a-fA-F]{6}/);
   return match ? match[0] : '#000000';
+}
+
+function CollapsibleSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <button
+        className="w-full flex items-center justify-between py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+        onClick={() => setOpen(!open)}
+      >
+        <span>{title}</span>
+        {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </button>
+      {open && <div className="mt-2 space-y-3">{children}</div>}
+    </div>
+  );
 }
 
 export function EditorToolbar({ design, onChange }: Props) {
@@ -64,14 +73,13 @@ export function EditorToolbar({ design, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
         <Palette className="h-3.5 w-3.5" /> Personnalisation
       </h4>
 
       {/* Cover settings */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium">Page de couverture</p>
+      <CollapsibleSection title="Page de couverture" defaultOpen>
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Titre</Label>
           <Input
@@ -90,12 +98,12 @@ export function EditorToolbar({ design, onChange }: Props) {
             className="h-8 text-xs"
           />
         </div>
-      </div>
+      </CollapsibleSection>
+
+      <div className="h-px bg-border" />
 
       {/* Backgrounds */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium flex items-center gap-1.5"><Paintbrush className="h-3.5 w-3.5" /> Fonds</p>
-        
+      <CollapsibleSection title="Fonds">
         {/* Cover background */}
         <div className="space-y-1.5">
           <Label className="text-[10px] text-muted-foreground">Fond couverture</Label>
@@ -119,7 +127,25 @@ export function EditorToolbar({ design, onChange }: Props) {
               onChange={e => updateOverride('coverBg', e.target.value)}
               className="w-6 h-6 rounded border-0 cursor-pointer"
             />
-            <span className="text-[10px] text-muted-foreground">Couleur personnalisée</span>
+            <Input
+              value={extractColor(styles.coverBg)}
+              onChange={e => {
+                const v = e.target.value;
+                if (/^#[0-9a-fA-F]{6}$/.test(v)) updateOverride('coverBg', v);
+              }}
+              className="h-6 text-[10px] w-20 px-1.5 font-mono"
+              placeholder="#000000"
+            />
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap">Opacité</span>
+            <Slider
+              value={[design.overrides?.coverBgOpacity ?? 1]}
+              onValueChange={([v]) => onChange({ ...design, overrides: { ...design.overrides, coverBgOpacity: v } })}
+              min={0.05} max={1} step={0.05}
+              className="flex-1"
+            />
+            <span className="text-[10px] text-muted-foreground w-7 text-right">{Math.round((design.overrides?.coverBgOpacity ?? 1) * 100)}%</span>
           </div>
         </div>
 
@@ -146,14 +172,33 @@ export function EditorToolbar({ design, onChange }: Props) {
               onChange={e => updateOverride('bodyBg', e.target.value)}
               className="w-6 h-6 rounded border-0 cursor-pointer"
             />
-            <span className="text-[10px] text-muted-foreground">Couleur personnalisée</span>
+            <Input
+              value={extractColor(styles.bodyBg)}
+              onChange={e => {
+                const v = e.target.value;
+                if (/^#[0-9a-fA-F]{6}$/.test(v)) updateOverride('bodyBg', v);
+              }}
+              className="h-6 text-[10px] w-20 px-1.5 font-mono"
+              placeholder="#000000"
+            />
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap">Opacité</span>
+            <Slider
+              value={[design.overrides?.bodyBgOpacity ?? 1]}
+              onValueChange={([v]) => onChange({ ...design, overrides: { ...design.overrides, bodyBgOpacity: v } })}
+              min={0.05} max={1} step={0.05}
+              className="flex-1"
+            />
+            <span className="text-[10px] text-muted-foreground w-7 text-right">{Math.round((design.overrides?.bodyBgOpacity ?? 1) * 100)}%</span>
           </div>
         </div>
-      </div>
+      </CollapsibleSection>
+
+      <div className="h-px bg-border" />
 
       {/* Typography */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium flex items-center gap-1.5"><Type className="h-3.5 w-3.5" /> Typographie</p>
+      <CollapsibleSection title="Typographie">
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Police titres</Label>
           <select
@@ -178,11 +223,12 @@ export function EditorToolbar({ design, onChange }: Props) {
             ))}
           </select>
         </div>
-      </div>
+      </CollapsibleSection>
+
+      <div className="h-px bg-border" />
 
       {/* Colors */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium">Couleurs</p>
+      <CollapsibleSection title="Couleurs">
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
             <Label className="text-[10px] text-muted-foreground">Accent</Label>
@@ -221,11 +267,12 @@ export function EditorToolbar({ design, onChange }: Props) {
             </div>
           </div>
         </div>
-      </div>
+      </CollapsibleSection>
+
+      <div className="h-px bg-border" />
 
       {/* Category & Price Style */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium">Style des catégories</p>
+      <CollapsibleSection title="Style des catégories">
         <div className="grid grid-cols-2 gap-1.5">
           {(['underline', 'elegant', 'badge', 'divider'] as const).map(st => (
             <Button
@@ -239,10 +286,11 @@ export function EditorToolbar({ design, onChange }: Props) {
             </Button>
           ))}
         </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="space-y-3">
-        <p className="text-xs font-medium">Style des prix</p>
+      <div className="h-px bg-border" />
+
+      <CollapsibleSection title="Style des prix">
         <div className="grid grid-cols-3 gap-1.5">
           {(['inline', 'dots', 'right'] as const).map(st => (
             <Button
@@ -256,30 +304,7 @@ export function EditorToolbar({ design, onChange }: Props) {
             </Button>
           ))}
         </div>
-      </div>
-
-      {/* Border radius */}
-      <div className="space-y-3">
-        <p className="text-xs font-medium">Arrondis</p>
-        <div className="grid grid-cols-4 gap-1.5">
-          {[
-            { label: 'Aucun', value: '0px' },
-            { label: 'Léger', value: '4px' },
-            { label: 'Moyen', value: '8px' },
-            { label: 'Fort', value: '16px' },
-          ].map(r => (
-            <Button
-              key={r.value}
-              size="sm"
-              variant={styles.borderRadius === r.value ? 'default' : 'outline'}
-              className="text-[10px] h-7"
-              onClick={() => updateOverride('borderRadius', r.value)}
-            >
-              {r.label}
-            </Button>
-          ))}
-        </div>
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }
