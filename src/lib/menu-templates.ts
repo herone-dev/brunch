@@ -4,6 +4,9 @@ export type IconStyle = 'emoji' | 'lucide' | 'none';
 
 export type LogoPosition = 'left' | 'center' | 'right';
 
+export type NavStyle = 'simple' | 'pills' | 'underline' | 'separator';
+
+
 export interface AdvancedPageSettings {
   backgroundImageUrl?: string;
   backgroundOpacity?: number; // 0-1
@@ -15,6 +18,7 @@ export interface AdvancedPageSettings {
   showWebsite?: boolean;
   showSocials?: boolean;
   showNavigation?: boolean;
+  navStyle?: NavStyle;
   customText?: string;
   iconStyle?: IconStyle;
 }

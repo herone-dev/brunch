@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { type MenuDesign, type MenuFormat, type AdvancedPageSettings, type IconStyle, type LogoPosition, type TextSize, TEXT_SIZE_SCALES, getEffectiveStyles } from '@/lib/menu-templates';
+import { type MenuDesign, type MenuFormat, type AdvancedPageSettings, type IconStyle, type LogoPosition, type TextSize, type NavStyle, TEXT_SIZE_SCALES, getEffectiveStyles } from '@/lib/menu-templates';
 import { FloatingToolbar, type ElementStyle } from '@/components/menu-editor/FloatingToolbar';
 import { MapPin, Phone, Mail, Globe, Instagram, Facebook } from 'lucide-react';
 import type { CategoryWithItems, ItemWithDetails, Restaurant } from '@/lib/types';
@@ -197,6 +197,88 @@ export function MenuCanvas({
     );
   };
 
+  const renderNavigation = (cats: CategoryWithItems[], navStyle: NavStyle) => {
+    const baseClick = (catId: string) => (e: React.MouseEvent) => { e.stopPropagation(); onSelectCategory(catId); };
+
+    if (navStyle === 'pills') {
+      return (
+        <div className="flex flex-wrap items-center justify-center gap-1.5" style={{ fontSize: '9px' }}>
+          {cats.map(cat => (
+            <button
+              key={cat.id}
+              className="px-2 py-0.5 rounded-full transition-all cursor-pointer whitespace-nowrap font-medium"
+              style={{
+                backgroundColor: selectedCategoryId === cat.id ? s.accentColor : s.accentColor + '18',
+                color: selectedCategoryId === cat.id ? s.bodyBg : s.accentColor,
+              }}
+              onClick={baseClick(cat.id)}
+            >
+              {getName(cat.translations, lang)}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    if (navStyle === 'underline') {
+      return (
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1" style={{ fontSize: '9px' }}>
+          {cats.map(cat => (
+            <button
+              key={cat.id}
+              className="pb-0.5 transition-all cursor-pointer whitespace-nowrap font-medium"
+              style={{
+                color: s.accentColor,
+                opacity: selectedCategoryId === cat.id ? 1 : 0.6,
+                borderBottom: selectedCategoryId === cat.id ? `1.5px solid ${s.accentColor}` : '1.5px solid transparent',
+              }}
+              onClick={baseClick(cat.id)}
+            >
+              {getName(cat.translations, lang)}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    if (navStyle === 'separator') {
+      return (
+        <div className="flex flex-wrap items-center justify-center gap-y-1" style={{ fontSize: '9px' }}>
+          {cats.map((cat, i) => (
+            <span key={cat.id} className="inline-flex items-center">
+              <button
+                className="transition-all cursor-pointer whitespace-nowrap font-medium"
+                style={{ color: s.accentColor, opacity: selectedCategoryId === cat.id ? 1 : 0.6 }}
+                onClick={baseClick(cat.id)}
+              >
+                {getName(cat.translations, lang)}
+              </button>
+              {i < cats.length - 1 && (
+                <span className="mx-1.5" style={{ color: s.accentColor, opacity: 0.3 }}>•</span>
+              )}
+            </span>
+          ))}
+        </div>
+      );
+    }
+
+    // simple (default)
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1" style={{ fontSize: '9px' }}>
+        {cats.map(cat => (
+          <button
+            key={cat.id}
+            className="hover:underline transition-all cursor-pointer whitespace-nowrap font-medium"
+            style={{ color: s.accentColor, opacity: selectedCategoryId === cat.id ? 1 : 0.7 }}
+            onClick={baseClick(cat.id)}
+          >
+            {getName(cat.translations, lang)}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   const renderHeaderFooter = (section: 'header' | 'footer') => {
     const settings = design[section];
     if (!design.advancedMode || !settings) return null;
@@ -227,20 +309,7 @@ export function MenuCanvas({
               </div>
             </div>
           )}
-          {showNav && visibleCats.length > 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1" style={{ fontSize: '9px' }}>
-              {visibleCats.map(cat => (
-                <button
-                  key={cat.id}
-                  className="hover:underline transition-all cursor-pointer whitespace-nowrap font-medium"
-                  style={{ color: s.accentColor, opacity: selectedCategoryId === cat.id ? 1 : 0.7 }}
-                  onClick={(e) => { e.stopPropagation(); onSelectCategory(cat.id); }}
-                >
-                  {getName(cat.translations, lang)}
-                </button>
-              ))}
-            </div>
-          )}
+          {showNav && visibleCats.length > 0 && renderNavigation(visibleCats, settings.navStyle || 'simple')}
         </div>
       </div>
     );
