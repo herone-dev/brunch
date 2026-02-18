@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import type { ItemWithDetails, Menu, ModelJob } from "@/lib/types";
 import { RestaurantSettings } from "@/components/RestaurantSettings";
 import { MenuScheduleDialog } from "@/components/MenuScheduleDialog";
+import { NewMenuDialog } from "@/components/NewMenuDialog";
 
 /* ─── Onboarding dialog (first time) ─── */
 const OnboardingDialog = ({ open, onCreated }: { open: boolean; onCreated: (id: string) => void }) => {
@@ -221,7 +222,6 @@ const Dashboard = () => {
   const { data: qrScans } = useQrScanCount(restaurant?.id);
   const createMenu = useCreateMenu();
   const [showNewMenu, setShowNewMenu] = useState(false);
-  const [newMenuName, setNewMenuName] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
@@ -362,36 +362,15 @@ const Dashboard = () => {
                 )}
               </section>
 
-              {/* ── Create menu dialog ── */}
-              <Dialog open={showNewMenu} onOpenChange={setShowNewMenu}>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Nouveau menu</DialogTitle>
-                  </DialogHeader>
-                  <form
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      try {
-                        await createMenu.mutateAsync({ restaurantId: restaurant.id, name: newMenuName });
-                        toast.success("Menu créé !");
-                        setNewMenuName("");
-                        setShowNewMenu(false);
-                      } catch (err: any) {
-                        toast.error(err.message || "Erreur");
-                      }
-                    }}
-                    className="space-y-4 pt-2"
-                  >
-                    <div className="space-y-2">
-                      <Label>Nom du menu</Label>
-                      <Input value={newMenuName} onChange={(e) => setNewMenuName(e.target.value)} placeholder="Menu du soir" required />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={createMenu.isPending}>
-                      {createMenu.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Création...</> : "Créer"}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <NewMenuDialog
+                open={showNewMenu}
+                onOpenChange={setShowNewMenu}
+                restaurantId={restaurant.id}
+                onMenuCreated={(menuId) => {
+                  createMenu.reset();
+                  navigate(`/app/restaurants/${restaurant.id}/menu`);
+                }}
+              />
 
               {/* ── 3D Preview (single row) ── */}
               <section>
