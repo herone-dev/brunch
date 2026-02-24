@@ -327,16 +327,6 @@ export default function PricingSection() {
                 Vous gérez plusieurs établissements, une franchise ou une chaîne de restauration ? On construit une offre sur mesure.
               </p>
             </div>
-            <div className="flex-1">
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
-                {CUSTOM_FEATURES.map((f) => (
-                  <span key={f} className="flex items-start gap-2 text-sm leading-[1.8]">
-                    <Check className="h-4 w-4 mt-1 shrink-0 text-emerald-500" />
-                    <span>{f}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
             <div className="flex flex-col items-center gap-2 shrink-0">
               <Button variant="outline" size="lg" className="whitespace-nowrap rounded-[10px] h-12 font-semibold hover:-translate-y-0.5 transition-all duration-200">
                 Nous contacter
