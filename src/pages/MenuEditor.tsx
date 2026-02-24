@@ -451,6 +451,19 @@ const MenuEditor = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Photo Import Dialog */}
+      <MenuPhotoImporter
+        open={photoImportOpen}
+        onOpenChange={setPhotoImportOpen}
+        onMenuImported={async (menuData) => {
+          try {
+            await importFromPhoto.mutateAsync(menuData);
+          } catch (err: any) {
+            toast.error(err.message || "Erreur lors de l'import");
+          }
+        }}
+      />
     </div>
   );
 };
