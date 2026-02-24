@@ -284,13 +284,13 @@ export default function PricingSection() {
           </div>
 
           {/* Toggle */}
-          <div className="flex justify-center mb-12">
-            <div className="inline-flex items-center bg-background rounded-full p-1 gap-1 shadow-sm border border-border">
+          <div className="flex justify-center mb-10 sm:mb-12">
+            <div className="inline-flex items-center bg-background rounded-full p-1 gap-0.5 sm:gap-1 shadow-sm border border-border overflow-x-auto max-w-full">
               {BILLING_OPTIONS.map((opt) => (
                 <button
                   key={opt.key}
                   onClick={() => setBillingPeriod(opt.key)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                  className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                     billingPeriod === opt.key
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -298,7 +298,7 @@ export default function PricingSection() {
                 >
                   {opt.label}
                   {opt.badge && (
-                    <span className="ml-1.5 text-[10px] font-bold">{opt.badge}</span>
+                    <span className="ml-1 sm:ml-1.5 text-[10px] font-bold hidden sm:inline">{opt.badge}</span>
                   )}
                 </button>
               ))}
