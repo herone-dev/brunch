@@ -54,6 +54,8 @@ const MenuEditor = () => {
   const isMobile = useIsMobile();
   const [leftOpen, setLeftOpen] = useState(!isMobile);
   const [rightOpen, setRightOpen] = useState(!isMobile);
+  const [photoImportOpen, setPhotoImportOpen] = useState(false);
+  const importFromPhoto = useImportMenuFromPhoto(menu?.id || '');
 
   // Close panels when switching to mobile
   useEffect(() => {
