@@ -199,9 +199,9 @@ function PlanCard({ plan, period }: { plan: PlanData; period: BillingPeriod }) {
 
   return (
     <div
-      className={`relative flex flex-col rounded-[20px] border p-8 transition-all duration-200 ${
+      className={`relative flex flex-col rounded-[20px] border p-6 sm:p-8 transition-all duration-200 ${
         plan.recommended
-          ? "border-primary border-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)] scale-[1.03] z-10 bg-background"
+          ? "border-primary border-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)] md:scale-[1.03] z-10 bg-background"
           : plan.premium
           ? "border-border bg-background shadow-[0_4px_24px_rgba(0,0,0,0.06)]"
           : "border-border bg-background shadow-[0_4px_24px_rgba(0,0,0,0.06)]"
@@ -215,12 +215,12 @@ function PlanCard({ plan, period }: { plan: PlanData; period: BillingPeriod }) {
         {plan.recommended && <Badge className="bg-primary text-primary-foreground text-xs">Recommandé</Badge>}
       </div>
 
-      <h3 className="text-xl font-bold tracking-tight mb-2">{plan.name}</h3>
+      <h3 className="text-lg sm:text-xl font-bold tracking-tight mb-2">{plan.name}</h3>
 
       {/* Price */}
       <div className="mb-1 flex items-end gap-2 flex-wrap">
-        <span className="text-[48px] font-bold text-primary leading-none">{plan.getPrice(period)}</span>
-        <span className="text-muted-foreground text-base mb-1">/ mois</span>
+        <span className="text-[36px] sm:text-[48px] font-bold text-primary leading-none">{plan.getPrice(period)}</span>
+        <span className="text-muted-foreground text-sm sm:text-base mb-1">/ mois</span>
         {periodBadge && (
           <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-0 text-xs font-bold">
             {periodBadge}
@@ -244,9 +244,9 @@ function PlanCard({ plan, period }: { plan: PlanData; period: BillingPeriod }) {
         </p>
       )}
 
-      <p className="text-sm text-muted-foreground mb-6">{plan.description}</p>
+      <p className="text-sm text-muted-foreground mb-5 sm:mb-6">{plan.description}</p>
 
-      <div className="flex-1 space-y-1 mb-6">
+      <div className="flex-1 space-y-1 mb-5 sm:mb-6">
         {plan.features.map((f, i) => <FeatureItem key={i} feature={f} />)}
       </div>
 
