@@ -51,9 +51,6 @@ export default function HeroSection() {
             </Link>
           </div>
 
-          <p className="text-[12px] text-[hsl(0,0%,64%)] tracking-wide">
-            ✅ Sans carte bancaire · ✅ Sans engagement · ✅ Menu 3D inclus · ✅ Prêt en 5 min
-          </p>
         </div>
 
         <div className="flex justify-center">
