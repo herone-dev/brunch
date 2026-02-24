@@ -313,22 +313,22 @@ export default function PricingSection() {
           </div>
 
           {/* Custom plan — full width below */}
-          <div className="rounded-[20px] border border-dashed border-border bg-background/50 p-8 flex flex-col md:flex-row items-start md:items-center gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
-            <div className="flex-1 space-y-3">
+          <div className="rounded-[20px] border border-dashed border-border bg-background/50 p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
+            <div className="flex-1 space-y-2 sm:space-y-3">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="bg-muted text-muted-foreground border-0">Groupes & Chaînes</Badge>
               </div>
-              <h3 className="text-xl font-bold">CUSTOM</h3>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold text-foreground">Sur devis</span>
-                <span className="text-sm text-muted-foreground mb-0.5">· Tarif adapté à votre volume</span>
+              <h3 className="text-lg sm:text-xl font-bold">CUSTOM</h3>
+              <div className="flex items-end gap-2 flex-wrap">
+                <span className="text-2xl sm:text-3xl font-bold text-foreground">Sur devis</span>
+                <span className="text-xs sm:text-sm text-muted-foreground mb-0.5">· Tarif adapté à votre volume</span>
               </div>
               <p className="text-sm text-muted-foreground max-w-lg">
                 Vous gérez plusieurs établissements, une franchise ou une chaîne de restauration ? On construit une offre sur mesure.
               </p>
             </div>
-            <div className="flex flex-col items-center gap-2 shrink-0">
-              <Button variant="outline" size="lg" className="whitespace-nowrap rounded-[10px] h-12 font-semibold hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex flex-col items-center gap-2 shrink-0 w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto whitespace-nowrap rounded-[10px] h-12 font-semibold hover:-translate-y-0.5 transition-all duration-200">
                 Nous contacter
               </Button>
               <p className="text-[11px] text-muted-foreground text-center max-w-[180px]">
