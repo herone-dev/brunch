@@ -199,9 +199,9 @@ function PlanCard({ plan, period }: { plan: PlanData; period: BillingPeriod }) {
 
   return (
     <div
-      className={`relative flex flex-col rounded-[20px] border p-8 transition-all duration-200 ${
+      className={`relative flex flex-col rounded-[20px] border p-6 sm:p-8 transition-all duration-200 ${
         plan.recommended
-          ? "border-primary border-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)] scale-[1.03] z-10 bg-background"
+          ? "border-primary border-2 shadow-[0_4px_24px_rgba(0,0,0,0.08)] md:scale-[1.03] z-10 bg-background"
           : plan.premium
           ? "border-border bg-background shadow-[0_4px_24px_rgba(0,0,0,0.06)]"
           : "border-border bg-background shadow-[0_4px_24px_rgba(0,0,0,0.06)]"
@@ -215,12 +215,12 @@ function PlanCard({ plan, period }: { plan: PlanData; period: BillingPeriod }) {
         {plan.recommended && <Badge className="bg-primary text-primary-foreground text-xs">Recommandé</Badge>}
       </div>
 
-      <h3 className="text-xl font-bold tracking-tight mb-2">{plan.name}</h3>
+      <h3 className="text-lg sm:text-xl font-bold tracking-tight mb-2">{plan.name}</h3>
 
       {/* Price */}
       <div className="mb-1 flex items-end gap-2 flex-wrap">
-        <span className="text-[48px] font-bold text-primary leading-none">{plan.getPrice(period)}</span>
-        <span className="text-muted-foreground text-base mb-1">/ mois</span>
+        <span className="text-[36px] sm:text-[48px] font-bold text-primary leading-none">{plan.getPrice(period)}</span>
+        <span className="text-muted-foreground text-sm sm:text-base mb-1">/ mois</span>
         {periodBadge && (
           <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-0 text-xs font-bold">
             {periodBadge}
@@ -244,9 +244,9 @@ function PlanCard({ plan, period }: { plan: PlanData; period: BillingPeriod }) {
         </p>
       )}
 
-      <p className="text-sm text-muted-foreground mb-6">{plan.description}</p>
+      <p className="text-sm text-muted-foreground mb-5 sm:mb-6">{plan.description}</p>
 
-      <div className="flex-1 space-y-1 mb-6">
+      <div className="flex-1 space-y-1 mb-5 sm:mb-6">
         {plan.features.map((f, i) => <FeatureItem key={i} feature={f} />)}
       </div>
 
@@ -284,13 +284,13 @@ export default function PricingSection() {
           </div>
 
           {/* Toggle */}
-          <div className="flex justify-center mb-12">
-            <div className="inline-flex items-center bg-background rounded-full p-1 gap-1 shadow-sm border border-border">
+          <div className="flex justify-center mb-10 sm:mb-12">
+            <div className="inline-flex items-center bg-background rounded-full p-1 gap-0.5 sm:gap-1 shadow-sm border border-border overflow-x-auto max-w-full">
               {BILLING_OPTIONS.map((opt) => (
                 <button
                   key={opt.key}
                   onClick={() => setBillingPeriod(opt.key)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                  className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                     billingPeriod === opt.key
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -298,7 +298,7 @@ export default function PricingSection() {
                 >
                   {opt.label}
                   {opt.badge && (
-                    <span className="ml-1.5 text-[10px] font-bold">{opt.badge}</span>
+                    <span className="ml-1 sm:ml-1.5 text-[10px] font-bold hidden sm:inline">{opt.badge}</span>
                   )}
                 </button>
               ))}
@@ -306,29 +306,29 @@ export default function PricingSection() {
           </div>
 
           {/* 3 Plan Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch mb-6">
             {PLANS.map((plan) => (
               <PlanCard key={plan.name} plan={plan} period={billingPeriod} />
             ))}
           </div>
 
           {/* Custom plan — full width below */}
-          <div className="rounded-[20px] border border-dashed border-border bg-background/50 p-8 flex flex-col md:flex-row items-start md:items-center gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
-            <div className="flex-1 space-y-3">
+          <div className="rounded-[20px] border border-dashed border-border bg-background/50 p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 shadow-[0_4px_24px_rgba(0,0,0,0.06)]">
+            <div className="flex-1 space-y-2 sm:space-y-3">
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="bg-muted text-muted-foreground border-0">Groupes & Chaînes</Badge>
               </div>
-              <h3 className="text-xl font-bold">CUSTOM</h3>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold text-foreground">Sur devis</span>
-                <span className="text-sm text-muted-foreground mb-0.5">· Tarif adapté à votre volume</span>
+              <h3 className="text-lg sm:text-xl font-bold">CUSTOM</h3>
+              <div className="flex items-end gap-2 flex-wrap">
+                <span className="text-2xl sm:text-3xl font-bold text-foreground">Sur devis</span>
+                <span className="text-xs sm:text-sm text-muted-foreground mb-0.5">· Tarif adapté à votre volume</span>
               </div>
               <p className="text-sm text-muted-foreground max-w-lg">
                 Vous gérez plusieurs établissements, une franchise ou une chaîne de restauration ? On construit une offre sur mesure.
               </p>
             </div>
-            <div className="flex flex-col items-center gap-2 shrink-0">
-              <Button variant="outline" size="lg" className="whitespace-nowrap rounded-[10px] h-12 font-semibold hover:-translate-y-0.5 transition-all duration-200">
+            <div className="flex flex-col items-center gap-2 shrink-0 w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto whitespace-nowrap rounded-[10px] h-12 font-semibold hover:-translate-y-0.5 transition-all duration-200">
                 Nous contacter
               </Button>
               <p className="text-[11px] text-muted-foreground text-center max-w-[180px]">
