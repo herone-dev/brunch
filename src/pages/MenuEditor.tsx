@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Eye, EyeOff, Upload, Image, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X, Layers, Palette } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Upload, Image, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X, Layers, Palette, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { CategoryWithItems, ItemWithDetails, Restaurant } from "@/lib/types";
@@ -26,6 +26,8 @@ import { EditorToolbar } from "@/components/menu-editor/EditorToolbar";
 import { CategorySidebar } from "@/components/menu-editor/CategorySidebar";
 import { ItemProperties, CategoryProperties } from "@/components/menu-editor/PropertiesPanel";
 import { Panel3D } from "@/components/menu-editor/Panel3D";
+import { MenuPhotoImporter } from "@/components/menu-editor/MenuPhotoImporter";
+import { useImportMenuFromPhoto } from "@/hooks/useImportMenuFromPhoto";
 
 
 const MenuEditor = () => {
@@ -52,6 +54,8 @@ const MenuEditor = () => {
   const isMobile = useIsMobile();
   const [leftOpen, setLeftOpen] = useState(!isMobile);
   const [rightOpen, setRightOpen] = useState(!isMobile);
+  const [photoImportOpen, setPhotoImportOpen] = useState(false);
+  const importFromPhoto = useImportMenuFromPhoto(menu?.id || '');
 
   // Close panels when switching to mobile
   useEffect(() => {
@@ -193,6 +197,9 @@ const MenuEditor = () => {
           </div>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setPhotoImportOpen(true)}>
+            <Camera className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Importer photo</span>
+          </Button>
           <div className="flex items-center border rounded-md overflow-hidden">
             {(restaurant?.supported_langs || ['fr', 'en']).map(lang => (
               <button
@@ -445,6 +452,19 @@ const MenuEditor = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Photo Import Dialog */}
+      <MenuPhotoImporter
+        open={photoImportOpen}
+        onOpenChange={setPhotoImportOpen}
+        onMenuImported={async (menuData) => {
+          try {
+            await importFromPhoto.mutateAsync(menuData);
+          } catch (err: any) {
+            toast.error(err.message || "Erreur lors de l'import");
+          }
+        }}
+      />
     </div>
   );
 };
