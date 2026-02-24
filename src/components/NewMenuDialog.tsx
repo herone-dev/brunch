@@ -109,126 +109,116 @@ export function NewMenuDialog({ open, onOpenChange, restaurantId, onMenuCreated 
     if (files.length <= 1) setStep('choice');
   };
 
-  const handleProcessAll = async () => {
-    if (files.length === 0) return;
-    await uploadAndProcess(files[0]);
+  // Convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const MAX = 2000;
+          if (width > MAX) { height = (height * MAX) / width; width = MAX; }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => reject(new Error('Erreur chargement image'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Erreur lecture fichier'));
+      reader.readAsDataURL(file);
+    });
   };
 
-  const uploadAndProcess = async (f: File) => {
+  const handleProcessAll = async () => {
+    if (files.length === 0) return;
     setStep('uploading');
     try {
-      const ext = f.name.split('.').pop() || 'jpg';
-      const path = `${restaurantId}/import-${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from('menu-imports').upload(path, f);
-      if (uploadErr) throw uploadErr;
-
-      // Create import job
-      const { data: job, error: jobErr } = await supabase
-        .from('menu_import_jobs')
-        .insert({ restaurant_id: restaurantId, storage_path: path })
-        .select()
-        .single();
-      if (jobErr) throw jobErr;
-
+      const base64 = await fileToBase64(files[0]);
       setStep('processing');
       toast.success('Fichier envoyé ! Traitement en cours…');
 
-      // Poll for result
-      pollJob(job.id);
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors de l'envoi");
-      setStep('choice');
-    }
-  };
+      const { data, error } = await supabase.functions.invoke('analyze-menu-photo', {
+        body: { image: base64, filename: files[0].name },
+      });
 
-  const pollJob = async (jobId: string) => {
-    const maxAttempts = 60;
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(r => setTimeout(r, 3000));
-      const { data } = await supabase
-        .from('menu_import_jobs')
-        .select('status, result_json, error')
-        .eq('id', jobId)
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || "Erreur d'analyse");
+
+      const result = data?.menu_data || data;
+
+      // Create menu from result
+      const { data: newMenu, error: menuErr } = await supabase
+        .from('menus')
+        .insert({
+          restaurant_id: restaurantId,
+          name: result?.restaurant_name || 'Menu importé',
+        })
+        .select()
         .single();
+      if (menuErr) throw menuErr;
 
-      if (!data) continue;
-
-      if (data.status === 'completed') {
-        toast.success('Menu importé avec succès !');
-        // Create menu from result and navigate to editor
-        try {
-          const result = data.result_json as any;
-          const { data: newMenu, error: menuErr } = await supabase
-            .from('menus')
-            .insert({
-              restaurant_id: restaurantId,
-              name: result?.name || 'Menu importé',
-            })
+      const lang = result?.language_detected || 'fr';
+      if (result?.categories?.length) {
+        for (let ci = 0; ci < result.categories.length; ci++) {
+          const cat = result.categories[ci];
+          const { data: newCat } = await supabase
+            .from('menu_categories')
+            .insert({ menu_id: newMenu.id, sort_order: ci })
             .select()
             .single();
-          if (menuErr) throw menuErr;
 
-          // If result has categories/items, create them
-          if (result?.categories?.length) {
-            for (let ci = 0; ci < result.categories.length; ci++) {
-              const cat = result.categories[ci];
-              const { data: newCat } = await supabase
-                .from('menu_categories')
-                .insert({ menu_id: newMenu.id, sort_order: ci })
-                .select()
-                .single();
+          if (newCat) {
+            await supabase.from('menu_category_translations').insert({
+              category_id: newCat.id,
+              lang,
+              name: cat.name || `Catégorie ${ci + 1}`,
+            });
 
-              if (newCat) {
-                await supabase.from('menu_category_translations').insert({
-                  category_id: newCat.id,
-                  lang: 'fr',
-                  name: cat.name || `Catégorie ${ci + 1}`,
-                });
+            if (cat.items?.length) {
+              for (let ii = 0; ii < cat.items.length; ii++) {
+                const item = cat.items[ii];
+                const { data: newItem } = await supabase
+                  .from('menu_items')
+                  .insert({
+                    category_id: newCat.id,
+                    sort_order: ii,
+                    price_cents: Math.round((item.price || 0) * 100),
+                    tags: item.tags || [],
+                    allergens: item.allergens || [],
+                  })
+                  .select()
+                  .single();
 
-                if (cat.items?.length) {
-                  for (let ii = 0; ii < cat.items.length; ii++) {
-                    const item = cat.items[ii];
-                    const { data: newItem } = await supabase
-                      .from('menu_items')
-                      .insert({
-                        category_id: newCat.id,
-                        sort_order: ii,
-                        price_cents: Math.round((item.price || 0) * 100),
-                      })
-                      .select()
-                      .single();
-
-                    if (newItem) {
-                      await supabase.from('menu_item_translations').insert({
-                        item_id: newItem.id,
-                        lang: 'fr',
-                        name: item.name || `Plat ${ii + 1}`,
-                        description: item.description || null,
-                      });
-                    }
-                  }
+                if (newItem) {
+                  await supabase.from('menu_item_translations').insert({
+                    item_id: newItem.id,
+                    lang,
+                    name: item.name || `Plat ${ii + 1}`,
+                    description: item.description || null,
+                  });
                 }
               }
             }
           }
-
-          onMenuCreated(newMenu.id);
-        } catch (err: any) {
-          toast.error(err.message);
         }
-        onOpenChange(false);
-        return;
       }
 
-      if (data.status === 'failed') {
-        toast.error(data.error || 'Erreur lors du traitement');
-        setStep('choice');
-        return;
-      }
+      toast.success(`Menu importé ! ${result?.categories?.length || 0} catégories`);
+      onMenuCreated(newMenu.id);
+      onOpenChange(false);
+    } catch (err: any) {
+      console.error('Import error:', err);
+      toast.error(err.message || "Erreur lors de l'import");
+      setStep('choice');
     }
-    toast.error('Le traitement prend trop de temps. Réessayez plus tard.');
-    setStep('choice');
   };
+
 
   const handleCreateFromScratch = async (e: React.FormEvent) => {
     e.preventDefault();
