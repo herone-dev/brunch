@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Eye, EyeOff, Upload, Image, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X, Layers, Palette } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Upload, Image, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, X, Layers, Palette, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { CategoryWithItems, ItemWithDetails, Restaurant } from "@/lib/types";
@@ -26,6 +26,8 @@ import { EditorToolbar } from "@/components/menu-editor/EditorToolbar";
 import { CategorySidebar } from "@/components/menu-editor/CategorySidebar";
 import { ItemProperties, CategoryProperties } from "@/components/menu-editor/PropertiesPanel";
 import { Panel3D } from "@/components/menu-editor/Panel3D";
+import { MenuPhotoImporter } from "@/components/menu-editor/MenuPhotoImporter";
+import { useImportMenuFromPhoto } from "@/hooks/useImportMenuFromPhoto";
 
 
 const MenuEditor = () => {
