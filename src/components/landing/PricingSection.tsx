@@ -306,7 +306,7 @@ export default function PricingSection() {
           </div>
 
           {/* 3 Plan Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch mb-6">
             {PLANS.map((plan) => (
               <PlanCard key={plan.name} plan={plan} period={billingPeriod} />
             ))}
