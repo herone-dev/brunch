@@ -29,7 +29,7 @@ export default function FinalCTASection() {
           <Button
             size="lg"
             variant="outline"
-            className="h-12 text-base rounded-[10px] border-white/30 text-white hover:bg-white/10"
+            className="h-12 text-base rounded-[10px] border-secondary/50 text-secondary hover:bg-secondary/10"
             asChild
           >
             <Link to="/m/demo">Voir un vrai menu</Link>
