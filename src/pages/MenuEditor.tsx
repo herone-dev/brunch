@@ -197,7 +197,9 @@ const MenuEditor = () => {
           </div>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <div className="flex items-center border rounded-md overflow-hidden">
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setPhotoImportOpen(true)}>
+            <Camera className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Importer photo</span>
+          </Button>
             {(restaurant?.supported_langs || ['fr', 'en']).map(lang => (
               <button
                 key={lang}
