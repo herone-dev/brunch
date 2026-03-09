@@ -1,8 +1,6 @@
 // supabase/functions/generate-3d/index.ts
 // Edge Function: calls TRELLIS.2 via Gradio REST API, stores GLB in Supabase Storage,
 // updates menu_item_models status.
-//
-// Secrets: HF_TOKEN, SUPABASE_URL (auto), SUPABASE_SERVICE_ROLE_KEY (auto)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -14,22 +12,21 @@ const corsHeaders = {
 
 const SPACE_URL = "https://microsoft-trellis-2.hf.space";
 
-// ─── Gradio REST helpers ─────────────────────────────────────────────────────
+// ─── Gradio REST helper with session support ─────────────────────────────────
 
 async function gradioCall(
   apiName: string,
   data: unknown[],
   hfToken: string,
-  timeoutMs = 180_000
+  sessionHash: string,
 ): Promise<unknown[]> {
-  // Step 1: POST to /call/{api_name}
   const postRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${hfToken}`,
     },
-    body: JSON.stringify({ data }),
+    body: JSON.stringify({ data, session_hash: sessionHash }),
   });
 
   if (!postRes.ok) {
@@ -40,7 +37,7 @@ async function gradioCall(
   const { event_id } = await postRes.json();
   if (!event_id) throw new Error(`No event_id from /call/${apiName}`);
 
-  // Step 2: GET SSE stream /call/{api_name}/{event_id}
+  // GET SSE stream
   const sseRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}/${event_id}`, {
     headers: { Authorization: `Bearer ${hfToken}` },
   });
@@ -50,46 +47,47 @@ async function gradioCall(
   }
 
   const text = await sseRes.text();
+  console.log(`[generate-3d] SSE response for ${apiName} (first 500 chars):`, text.slice(0, 500));
 
-  // Parse SSE: look for "event: complete" followed by "data: ..."
   const lines = text.split("\n");
-  let lastData: string | null = null;
+  let completeData: string | null = null;
   let foundComplete = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
+    if (line === "event: error") {
+      // Next data line is the error
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j].trim().startsWith("data: ")) {
+          throw new Error(`TRELLIS.2 ${apiName} error: ${lines[j].trim().slice(6)}`);
+        }
+      }
+      throw new Error(`TRELLIS.2 ${apiName} returned error event`);
+    }
     if (line === "event: complete") {
       foundComplete = true;
     }
-    if (line.startsWith("data: ") && foundComplete) {
-      lastData = line.slice(6);
+    if (foundComplete && line.startsWith("data: ")) {
+      completeData = line.slice(6);
       break;
     }
-    // Also capture any data line (fallback for non-standard SSE)
-    if (line.startsWith("data: ")) {
-      lastData = line.slice(6);
-    }
   }
 
-  // Check for error events
-  for (const line of lines) {
-    if (line.trim() === "event: error") {
-      const errorDataIdx = lines.indexOf(line) + 1;
-      if (errorDataIdx < lines.length) {
-        const errorData = lines[errorDataIdx].trim();
-        if (errorData.startsWith("data: ")) {
-          throw new Error(`TRELLIS.2 error: ${errorData.slice(6)}`);
-        }
+  if (!completeData) {
+    // Fallback: grab last data line
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (lines[i].trim().startsWith("data: ")) {
+        completeData = lines[i].trim().slice(6);
+        break;
       }
-      throw new Error("TRELLIS.2 returned an error event");
     }
   }
 
-  if (!lastData) {
-    throw new Error(`No data received from Gradio SSE for ${apiName}`);
+  if (!completeData) {
+    throw new Error(`No data received from Gradio SSE for ${apiName}. Full response: ${text.slice(0, 1000)}`);
   }
 
-  return JSON.parse(lastData);
+  return JSON.parse(completeData);
 }
 
 // ─── Main handler ────────────────────────────────────────────────────────────
@@ -115,6 +113,10 @@ Deno.serve(async (req) => {
     const imageUrl = body.imageUrl;
     if (!dishId || !imageUrl) throw new Error("dishId and imageUrl required");
 
+    // Generate a unique session hash for this generation
+    const sessionHash = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    console.log("[generate-3d] Session hash:", sessionHash);
+
     // Set status to processing
     await supabase
       .from("menu_item_models")
@@ -130,7 +132,6 @@ Deno.serve(async (req) => {
     const imgBuffer = await imgRes.arrayBuffer();
     const imgBytes = new Uint8Array(imgBuffer);
 
-    // Convert to base64 safely (no stack overflow)
     const CHUNK = 4096;
     const chunks: string[] = [];
     for (let i = 0; i < imgBytes.length; i += CHUNK) {
@@ -145,12 +146,12 @@ Deno.serve(async (req) => {
     const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
     const imageDataUrl = `data:${mimeType};base64,${imgBase64}`;
 
-    // ── Step 2: Start session ────────────────────────────────────────────
+    // ── Step 2: Start session ─────────────────────────────────────────────
     console.log("[generate-3d] Step 0: start_session...");
-    await gradioCall("start_session", [], hfToken);
+    await gradioCall("start_session", [], hfToken, sessionHash);
     console.log("[generate-3d] Session started");
 
-    // ── Step 3: Preprocess image (background removal) ─────────────────────
+    // ── Step 3: Preprocess image ──────────────────────────────────────────
     console.log("[generate-3d] Step 1: preprocess_image...");
     const imgPayload = {
       url: imageDataUrl,
@@ -159,7 +160,8 @@ Deno.serve(async (req) => {
     const preprocessResult = await gradioCall(
       "preprocess_image",
       [imgPayload],
-      hfToken
+      hfToken,
+      sessionHash
     );
     const processedImage = preprocessResult[0];
     console.log("[generate-3d] Preprocess done");
@@ -177,23 +179,27 @@ Deno.serve(async (req) => {
         1.0, 0.0, 12, 3.0,  // SLat tex params
       ],
       hfToken,
-      180_000
+      sessionHash
     );
     console.log("[generate-3d] 3D generation done");
 
-    // ── Step 5: Extract GLB (uses server-side session state) ──────────────
+    // ── Step 5: Extract GLB ───────────────────────────────────────────────
     console.log("[generate-3d] Step 3: extract_glb...");
     const glbResult = await gradioCall(
       "extract_glb",
       [300000, 2048],
-      hfToken
+      hfToken,
+      sessionHash
     );
 
     const glbFileInfo = glbResult[0] as { url?: string; path?: string; orig_name?: string };
-    const glbDownloadUrl = glbFileInfo?.url ?? `${SPACE_URL}/file=${glbFileInfo?.path}`;
+    const glbDownloadUrl = glbFileInfo?.url
+      ? (glbFileInfo.url.startsWith("http") ? glbFileInfo.url : `${SPACE_URL}${glbFileInfo.url}`)
+      : `${SPACE_URL}/gradio_api/file=${glbFileInfo?.path}`;
     console.log("[generate-3d] GLB file info:", JSON.stringify(glbFileInfo));
+    console.log("[generate-3d] GLB download URL:", glbDownloadUrl);
 
-    // ── Step 5: Download GLB & store in Supabase Storage ──────────────────
+    // ── Step 6: Download GLB & store ──────────────────────────────────────
     console.log("[generate-3d] Step 4: downloading GLB...");
     const glbRes = await fetch(glbDownloadUrl, {
       headers: { Authorization: `Bearer ${hfToken}` },
@@ -215,7 +221,7 @@ Deno.serve(async (req) => {
       .getPublicUrl(storagePath);
     const publicGlbUrl = publicUrlData.publicUrl;
 
-    // ── Step 6: Update status to ready ────────────────────────────────────
+    // ── Step 7: Update status to ready ────────────────────────────────────
     const { error: dbError } = await supabase
       .from("menu_item_models")
       .upsert(
