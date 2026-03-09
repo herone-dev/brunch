@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, Globe, X, Box, Camera } from "lucide-react";
-import { DishViewer3D } from "@/components/menu-editor/DishViewer3D";
+import { DishViewer3D, type DishViewer3DProps } from "@/components/menu-editor/DishViewer3D";
 
 const PublicMenu = () => {
   const { slug } = useParams<{ slug: string }>();
