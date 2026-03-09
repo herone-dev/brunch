@@ -23,7 +23,7 @@ async function gradioCall(
   timeoutMs = 180_000
 ): Promise<unknown[]> {
   // Step 1: POST to /call/{api_name}
-  const postRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}`, {
+  const postRes = await fetch(`${SPACE_URL}/gradio_api/gradio_api/call/${apiName}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -41,7 +41,7 @@ async function gradioCall(
   if (!event_id) throw new Error(`No event_id from /call/${apiName}`);
 
   // Step 2: GET SSE stream /call/{api_name}/{event_id}
-  const sseRes = await fetch(`${SPACE_URL}/call/${apiName}/${event_id}`, {
+  const sseRes = await fetch(`${gradio_api/SPACE_URL}/call/${apiName}/${event_id}`, {
     headers: { Authorization: `Bearer ${hfToken}` },
   });
 
