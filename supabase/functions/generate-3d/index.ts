@@ -23,7 +23,7 @@ async function gradioCall(
   timeoutMs = 180_000
 ): Promise<unknown[]> {
   // Step 1: POST to /call/{api_name}
-  const postRes = await fetch(`${SPACE_URL}/gradio_api/gradio_api/call/${apiName}`, {
+  const postRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -41,7 +41,7 @@ async function gradioCall(
   if (!event_id) throw new Error(`No event_id from /call/${apiName}`);
 
   // Step 2: GET SSE stream /call/{api_name}/{event_id}
-  const sseRes = await fetch(`${gradio_api/SPACE_URL}/call/${apiName}/${event_id}`, {
+  const sseRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}/${event_id}`, {
     headers: { Authorization: `Bearer ${hfToken}` },
   });
 
@@ -145,39 +145,47 @@ Deno.serve(async (req) => {
     const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
     const imageDataUrl = `data:${mimeType};base64,${imgBase64}`;
 
-    // ── Step 2: Preprocess image (background removal) ─────────────────────
+    // ── Step 2: Start session ────────────────────────────────────────────
+    console.log("[generate-3d] Step 0: start_session...");
+    await gradioCall("start_session", [], hfToken);
+    console.log("[generate-3d] Session started");
+
+    // ── Step 3: Preprocess image (background removal) ─────────────────────
     console.log("[generate-3d] Step 1: preprocess_image...");
+    const imgPayload = {
+      url: imageDataUrl,
+      meta: { _type: "gradio.FileData" },
+    };
     const preprocessResult = await gradioCall(
       "preprocess_image",
-      [{ path: imageDataUrl, url: imageDataUrl }],
+      [imgPayload],
       hfToken
     );
     const processedImage = preprocessResult[0];
     console.log("[generate-3d] Preprocess done");
 
-    // ── Step 3: Generate 3D model ─────────────────────────────────────────
+    // ── Step 4: Generate 3D model ─────────────────────────────────────────
     console.log("[generate-3d] Step 2: image_to_3d...");
-    const gen3dResult = await gradioCall(
+    await gradioCall(
       "image_to_3d",
       [
         processedImage,
         0,        // seed
         "1024",   // resolution
-        7.5, 0.7, 12, 5.0,  // SS guidance, step size, steps, cfg
-        7.5, 0.5, 12, 3.0,  // SLat params
-        1.0, 0.0, 12, 3.0,  // additional params
+        7.5, 0.7, 12, 5.0,  // SS params
+        7.5, 0.5, 12, 3.0,  // SLat shape params
+        1.0, 0.0, 12, 3.0,  // SLat tex params
       ],
       hfToken,
       180_000
     );
-    const modelState = gen3dResult[0];
     console.log("[generate-3d] 3D generation done");
 
-    // ── Step 4: Extract GLB ───────────────────────────────────────────────
+    // ── Step 5: Extract GLB (uses server-side session state) ──────────────
     console.log("[generate-3d] Step 3: extract_glb...");
     const glbResult = await gradioCall(
       "extract_glb",
-      [modelState, 300000, 2048],
+      [300000, 2048],
       hfToken
     );
 
