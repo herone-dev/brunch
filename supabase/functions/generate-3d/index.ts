@@ -146,12 +146,7 @@ Deno.serve(async (req) => {
     const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
     const imageDataUrl = `data:${mimeType};base64,${imgBase64}`;
 
-    // ── Step 2: Start session ─────────────────────────────────────────────
-    console.log("[generate-3d] Step 0: start_session...");
-    await gradioCall("start_session", [], hfToken, sessionHash);
-    console.log("[generate-3d] Session started");
-
-    // ── Step 3: Preprocess image ──────────────────────────────────────────
+    // ── Step 2: Preprocess image ──────────────────────────────────────────
     console.log("[generate-3d] Step 1: preprocess_image...");
     const imgPayload = {
       url: imageDataUrl,
