@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, Globe, X, Box, Camera } from "lucide-react";
-import { DishViewer3D } from "@/components/menu-editor/DishViewer3D";
+import { DishViewer3D, type DishViewer3DProps } from "@/components/menu-editor/DishViewer3D";
 
 const PublicMenu = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -236,25 +236,16 @@ const PublicMenu = () => {
         </DialogContent>
       </Dialog>
 
-      {/* 3D Viewer Dialog */}
-      <Dialog open={show3D} onOpenChange={setShow3D}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t('menu.view3d', lang)}</DialogTitle>
-          </DialogHeader>
-          <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-            {selectedItem?.model?.glb_path ? (
-              <div className="text-center text-muted-foreground">
-                <Box className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p className="text-sm">Modèle 3D disponible</p>
-                <p className="text-xs mt-1">model-viewer sera intégré ici</p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Aucun modèle 3D disponible</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* 3D Viewer — fullscreen-like modal */}
+      {show3D && selectedItem?.model?.glb_path && (
+        <DishViewer3D
+          glbUrl={selectedItem.model.glb_path}
+          dishName={getName(selectedItem.translations, lang)}
+          compact={false}
+          className="fixed inset-0 z-50"
+          onClose={() => setShow3D(false)}
+        />
+      )}
     </div>
   );
 };
