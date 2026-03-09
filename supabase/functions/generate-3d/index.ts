@@ -130,13 +130,18 @@ Deno.serve(async (req) => {
     const imgBuffer = await imgRes.arrayBuffer();
     const imgBytes = new Uint8Array(imgBuffer);
 
-    // Build base64 in chunks to avoid stack overflow
-    let binary = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < imgBytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...imgBytes.slice(i, i + chunkSize));
+    // Convert to base64 safely (no stack overflow)
+    const CHUNK = 4096;
+    const chunks: string[] = [];
+    for (let i = 0; i < imgBytes.length; i += CHUNK) {
+      const slice = imgBytes.subarray(i, Math.min(i + CHUNK, imgBytes.length));
+      let str = "";
+      for (let j = 0; j < slice.length; j++) {
+        str += String.fromCharCode(slice[j]);
+      }
+      chunks.push(str);
     }
-    const imgBase64 = btoa(binary);
+    const imgBase64 = btoa(chunks.join(""));
     const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
     const imageDataUrl = `data:${mimeType};base64,${imgBase64}`;
 
