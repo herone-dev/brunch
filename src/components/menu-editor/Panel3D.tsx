@@ -83,11 +83,11 @@ export function Panel3D({ dishId, existingModelUrl, onModelReady }: Panel3DProps
         .slice(2)}.${ext}`;
 
       const { error } = await supabase.storage
-        .from("dish-photos")
+        .from("menu-media")
         .upload(path, file, { upsert: true });
       if (error) throw new Error(`Upload failed: ${error.message}`);
 
-      const { data } = supabase.storage.from("dish-photos").getPublicUrl(path);
+      const { data } = supabase.storage.from("menu-media").getPublicUrl(path);
       urls.push(data.publicUrl);
     }
     return urls;
