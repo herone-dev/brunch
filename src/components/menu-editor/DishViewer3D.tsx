@@ -1,10 +1,6 @@
 // src/components/menu-editor/DishViewer3D.tsx
 // Composant viewer 3D GLB pour le menu public (PublicMenu.tsx)
 // Utilise @google/model-viewer — chargé via CDN dans index.html
-//
-// Utilisation dans PublicMenu.tsx :
-//   import { DishViewer3D } from "@/components/menu-editor/DishViewer3D";
-//   <DishViewer3D glbUrl={item.model_3d_url} dishName={item.name} />
 
 import { useState } from "react";
 import { Box, X, RotateCcw, ZoomIn } from "lucide-react";
@@ -21,11 +17,14 @@ declare global {
           alt?: string;
           "auto-rotate"?: boolean | string;
           "camera-controls"?: boolean | string;
+          "touch-action"?: string;
           "shadow-intensity"?: string;
           "environment-image"?: string;
           exposure?: string;
           poster?: string;
           ar?: boolean | string;
+          "ar-modes"?: string;
+          "ar-scale"?: string;
           style?: React.CSSProperties;
         },
         HTMLElement
@@ -42,6 +41,8 @@ interface DishViewer3DProps {
   /** Mode compact : affiche un bouton "Voir en 3D" qui ouvre une modale */
   compact?: boolean;
   className?: string;
+  /** Callback pour fermer (mode fullscreen / overlay) */
+  onClose?: () => void;
 }
 
 // ─── Composant principal ─────────────────────────────────────────────────────
@@ -51,12 +52,20 @@ export function DishViewer3D({
   dishName = "Plat",
   compact = true,
   className,
+  onClose,
 }: DishViewer3DProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!glbUrl) return null;
 
-  // Mode inline (non-compact)
+  // Mode fullscreen overlay (non-compact avec onClose)
+  if (!compact && onClose) {
+    return (
+      <DishModal glbUrl={glbUrl} dishName={dishName} onClose={onClose} />
+    );
+  }
+
+  // Mode inline (non-compact sans onClose)
   if (!compact) {
     return (
       <div className={cn("rounded-xl overflow-hidden bg-neutral-900", className)}>
@@ -68,21 +77,19 @@ export function DishViewer3D({
   // Mode compact : bouton + modale
   return (
     <>
-      {/* Bouton "Voir en 3D" */}
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setIsOpen(true)}
+        onClick={(e) => { e.stopPropagation(); setIsOpen(true); }}
         className={cn(
           "gap-1.5 border-primary/40 text-primary hover:bg-primary/5",
           className
         )}
       >
         <Box className="h-3.5 w-3.5" />
-        <span className="text-xs font-medium">Voir en 3D</span>
+        <span className="text-xs font-medium">3D</span>
       </Button>
 
-      {/* Modale */}
       {isOpen && (
         <DishModal
           glbUrl={glbUrl}
@@ -104,14 +111,19 @@ function Viewer3D({ glbUrl, dishName }: { glbUrl: string; dishName: string }) {
       alt={`Modèle 3D de ${dishName}`}
       auto-rotate
       camera-controls
+      touch-action="pan-y"
       shadow-intensity="1.2"
       exposure="1"
       environment-image="neutral"
+      ar
+      ar-modes="webxr scene-viewer quick-look"
+      ar-scale="auto"
       style={{
         width: "100%",
         height: "100%",
         minHeight: "320px",
         background: "transparent",
+        touchAction: "pan-y",
       }}
     />
   );
@@ -129,12 +141,10 @@ function DishModal({
   onClose: () => void;
 }) {
   return (
-    // Overlay
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
       onClick={onClose}
     >
-      {/* Contenu (stoppe la propagation du clic) */}
       <div
         className="relative w-full max-w-lg rounded-2xl overflow-hidden bg-neutral-950 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
