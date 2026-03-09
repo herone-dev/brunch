@@ -157,7 +157,14 @@ const PublicMenu = () => {
                     >
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium">{getName(item.translations, lang)}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{getName(item.translations, lang)}</p>
+                            <DishViewer3D
+                              glbUrl={item.model?.glb_path}
+                              dishName={getName(item.translations, lang)}
+                              compact
+                            />
+                          </div>
                           <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                             {getDesc(item.translations, lang)}
                           </p>

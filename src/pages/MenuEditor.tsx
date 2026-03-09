@@ -365,8 +365,18 @@ const MenuEditor = () => {
                 <EditorToolbar design={design} onChange={handleDesignChange} restaurant={restaurant} restaurantId={restaurantId} />
               </TabsContent>
               <TabsContent value="3d" className="flex-1 overflow-y-auto m-0 p-3">
-                {restaurantId && (
-                  <Panel3D categories={menu?.categories || []} restaurantId={restaurantId} />
+                {selectedItem ? (
+                  <Panel3D
+                    dishId={selectedItem.id}
+                    existingModelUrl={selectedItem.model?.glb_path}
+                    onModelReady={(url) => {
+                      toast.success("Modèle 3D prêt !");
+                    }}
+                  />
+                ) : (
+                  <div className="text-center text-muted-foreground text-sm py-8">
+                    Sélectionnez un plat pour générer son modèle 3D
+                  </div>
                 )}
               </TabsContent>
             </Tabs>
