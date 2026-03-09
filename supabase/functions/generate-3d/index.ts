@@ -23,7 +23,7 @@ async function gradioCall(
   timeoutMs = 180_000
 ): Promise<unknown[]> {
   // Step 1: POST to /call/{api_name}
-  const postRes = await fetch(`${SPACE_URL}/call/${apiName}`, {
+  const postRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
