@@ -35,7 +35,7 @@ declare global {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface DishViewer3DProps {
+export interface DishViewer3DProps {
   glbUrl: string | null | undefined;
   dishName?: string;
   /** Mode compact : affiche un bouton "Voir en 3D" qui ouvre une modale */
