@@ -41,7 +41,7 @@ async function gradioCall(
   if (!event_id) throw new Error(`No event_id from /call/${apiName}`);
 
   // Step 2: GET SSE stream /call/{api_name}/{event_id}
-  const sseRes = await fetch(`${gradio_api/SPACE_URL}/call/${apiName}/${event_id}`, {
+  const sseRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}/${event_id}`, {
     headers: { Authorization: `Bearer ${hfToken}` },
   });
 
