@@ -12,7 +12,7 @@ const corsHeaders = {
 
 const SPACE_URL = "https://microsoft-trellis-2.hf.space";
 
-// ─── Gradio REST helper with session support ─────────────────────────────────
+// ─── Gradio REST helper ──────────────────────────────────────────────────────
 
 async function gradioCall(
   apiName: string,
@@ -20,6 +20,9 @@ async function gradioCall(
   hfToken: string,
   sessionHash: string,
 ): Promise<unknown[]> {
+  console.log(`[generate-3d] Calling ${apiName} with session ${sessionHash}`);
+  console.log(`[generate-3d] Payload: ${JSON.stringify(data).slice(0, 300)}`);
+
   const postRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}`, {
     method: "POST",
     headers: {
@@ -34,60 +37,58 @@ async function gradioCall(
     throw new Error(`Gradio /call/${apiName} POST failed (${postRes.status}): ${errText}`);
   }
 
-  const { event_id } = await postRes.json();
-  if (!event_id) throw new Error(`No event_id from /call/${apiName}`);
+  const postBody = await postRes.json();
+  const eventId = postBody.event_id;
+  if (!eventId) throw new Error(`No event_id from /call/${apiName}: ${JSON.stringify(postBody)}`);
+
+  console.log(`[generate-3d] Got event_id: ${eventId}, polling SSE...`);
 
   // GET SSE stream
-  const sseRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}/${event_id}`, {
+  const sseRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}/${eventId}`, {
     headers: { Authorization: `Bearer ${hfToken}` },
   });
 
   if (!sseRes.ok) {
-    throw new Error(`Gradio SSE fetch failed (${sseRes.status})`);
+    const sseErr = await sseRes.text();
+    throw new Error(`Gradio SSE fetch failed (${sseRes.status}): ${sseErr.slice(0, 500)}`);
   }
 
   const text = await sseRes.text();
-  console.log(`[generate-3d] SSE response for ${apiName} (first 500 chars):`, text.slice(0, 500));
+  console.log(`[generate-3d] SSE response for ${apiName} (first 800 chars):`, text.slice(0, 800));
 
+  // Parse SSE events
   const lines = text.split("\n");
+  let lastEventType = "";
   let completeData: string | null = null;
-  let foundComplete = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (line === "event: error") {
-      // Next data line is the error
-      for (let j = i + 1; j < lines.length; j++) {
-        if (lines[j].trim().startsWith("data: ")) {
-          throw new Error(`TRELLIS.2 ${apiName} error: ${lines[j].trim().slice(6)}`);
-        }
-      }
-      throw new Error(`TRELLIS.2 ${apiName} returned error event`);
-    }
-    if (line === "event: complete") {
-      foundComplete = true;
-    }
-    if (foundComplete && line.startsWith("data: ")) {
-      completeData = line.slice(6);
-      break;
-    }
-  }
 
-  if (!completeData) {
-    // Fallback: grab last data line
-    for (let i = lines.length - 1; i >= 0; i--) {
-      if (lines[i].trim().startsWith("data: ")) {
-        completeData = lines[i].trim().slice(6);
+    if (line.startsWith("event: ")) {
+      lastEventType = line.slice(7).trim();
+    }
+
+    if (line.startsWith("data: ")) {
+      const dataStr = line.slice(6);
+
+      if (lastEventType === "error") {
+        throw new Error(`TRELLIS.2 ${apiName} error: ${dataStr}`);
+      }
+
+      if (lastEventType === "complete") {
+        completeData = dataStr;
         break;
       }
     }
   }
 
   if (!completeData) {
-    throw new Error(`No data received from Gradio SSE for ${apiName}. Full response: ${text.slice(0, 1000)}`);
+    throw new Error(`No complete event from Gradio SSE for ${apiName}. Full: ${text.slice(0, 2000)}`);
   }
 
-  return JSON.parse(completeData);
+  const parsed = JSON.parse(completeData);
+  console.log(`[generate-3d] ${apiName} result:`, JSON.stringify(parsed).slice(0, 300));
+  return parsed;
 }
 
 // ─── Main handler ────────────────────────────────────────────────────────────
@@ -113,9 +114,8 @@ Deno.serve(async (req) => {
     const imageUrl = body.imageUrl;
     if (!dishId || !imageUrl) throw new Error("dishId and imageUrl required");
 
-    // Generate a unique session hash for this generation
     const sessionHash = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-    console.log("[generate-3d] Session hash:", sessionHash);
+    console.log("[generate-3d] Starting. Session:", sessionHash, "Image:", imageUrl);
 
     // Set status to processing
     await supabase
@@ -125,31 +125,18 @@ Deno.serve(async (req) => {
         { onConflict: "item_id" }
       );
 
-    // ── Step 1: Fetch image & convert to base64 data URL ──────────────────
-    console.log("[generate-3d] Fetching image...");
-    const imgRes = await fetch(imageUrl);
-    if (!imgRes.ok) throw new Error("Cannot fetch image: " + imageUrl);
-    const imgBuffer = await imgRes.arrayBuffer();
-    const imgBytes = new Uint8Array(imgBuffer);
+    // ── Step 0: Start session ─────────────────────────────────────────────
+    console.log("[generate-3d] Step 0: start_session...");
+    await gradioCall("start_session", [], hfToken, sessionHash);
+    console.log("[generate-3d] Session started");
 
-    const CHUNK = 4096;
-    const chunks: string[] = [];
-    for (let i = 0; i < imgBytes.length; i += CHUNK) {
-      const slice = imgBytes.subarray(i, Math.min(i + CHUNK, imgBytes.length));
-      let str = "";
-      for (let j = 0; j < slice.length; j++) {
-        str += String.fromCharCode(slice[j]);
-      }
-      chunks.push(str);
-    }
-    const imgBase64 = btoa(chunks.join(""));
-    const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
-    const imageDataUrl = `data:${mimeType};base64,${imgBase64}`;
-
-    // ── Step 2: Preprocess image ──────────────────────────────────────────
+    // ── Step 1: Preprocess image ──────────────────────────────────────────
+    // Use public URL directly — no need for base64 conversion
     console.log("[generate-3d] Step 1: preprocess_image...");
     const imgPayload = {
-      url: imageDataUrl,
+      path: imageUrl,
+      url: imageUrl,
+      orig_name: "dish.jpg",
       meta: { _type: "gradio.FileData" },
     };
     const preprocessResult = await gradioCall(
@@ -161,24 +148,33 @@ Deno.serve(async (req) => {
     const processedImage = preprocessResult[0];
     console.log("[generate-3d] Preprocess done");
 
-    // ── Step 4: Generate 3D model ─────────────────────────────────────────
+    // ── Step 2: Generate 3D model ─────────────────────────────────────────
     console.log("[generate-3d] Step 2: image_to_3d...");
     await gradioCall(
       "image_to_3d",
       [
-        processedImage,
-        0,        // seed
-        "1024",   // resolution
-        7.5, 0.7, 12, 5.0,  // SS params
-        7.5, 0.5, 12, 3.0,  // SLat shape params
-        1.0, 0.0, 12, 3.0,  // SLat tex params
+        processedImage, // image (FileData from preprocess)
+        0,              // seed
+        "1024",         // resolution
+        7.5,            // ss_guidance_strength
+        0.7,            // ss_guidance_rescale
+        12,             // ss_sampling_steps
+        5.0,            // ss_rescale_t
+        7.5,            // shape_slat_guidance_strength
+        0.5,            // shape_slat_guidance_rescale
+        12,             // shape_slat_sampling_steps
+        3.0,            // shape_slat_rescale_t
+        1.0,            // tex_slat_guidance_strength
+        0.0,            // tex_slat_guidance_rescale
+        12,             // tex_slat_sampling_steps
+        3.0,            // tex_slat_rescale_t
       ],
       hfToken,
       sessionHash
     );
     console.log("[generate-3d] 3D generation done");
 
-    // ── Step 5: Extract GLB ───────────────────────────────────────────────
+    // ── Step 3: Extract GLB ───────────────────────────────────────────────
     console.log("[generate-3d] Step 3: extract_glb...");
     const glbResult = await gradioCall(
       "extract_glb",
@@ -187,20 +183,39 @@ Deno.serve(async (req) => {
       sessionHash
     );
 
-    const glbFileInfo = glbResult[0] as { url?: string; path?: string; orig_name?: string };
-    const glbDownloadUrl = glbFileInfo?.url
-      ? (glbFileInfo.url.startsWith("http") ? glbFileInfo.url : `${SPACE_URL}${glbFileInfo.url}`)
-      : `${SPACE_URL}/gradio_api/file=${glbFileInfo?.path}`;
+    // extract_glb returns [Model3dFileData, DownloadFileData]
+    // Use the second one (download button) or first one
+    const glbFileInfo = (glbResult[1] || glbResult[0]) as {
+      url?: string;
+      path?: string;
+      orig_name?: string;
+    };
+
+    let glbDownloadUrl: string;
+    if (glbFileInfo?.url) {
+      glbDownloadUrl = glbFileInfo.url.startsWith("http")
+        ? glbFileInfo.url
+        : `${SPACE_URL}${glbFileInfo.url}`;
+    } else if (glbFileInfo?.path) {
+      glbDownloadUrl = `${SPACE_URL}/gradio_api/file=${glbFileInfo.path}`;
+    } else {
+      throw new Error("No GLB URL or path in result: " + JSON.stringify(glbResult));
+    }
+
     console.log("[generate-3d] GLB file info:", JSON.stringify(glbFileInfo));
     console.log("[generate-3d] GLB download URL:", glbDownloadUrl);
 
-    // ── Step 6: Download GLB & store ──────────────────────────────────────
+    // ── Step 4: Download GLB & store ──────────────────────────────────────
     console.log("[generate-3d] Step 4: downloading GLB...");
     const glbRes = await fetch(glbDownloadUrl, {
       headers: { Authorization: `Bearer ${hfToken}` },
     });
-    if (!glbRes.ok) throw new Error("Cannot download GLB: " + glbDownloadUrl);
+    if (!glbRes.ok) {
+      const errBody = await glbRes.text();
+      throw new Error(`Cannot download GLB (${glbRes.status}): ${errBody.slice(0, 500)}`);
+    }
     const glbBuffer = await glbRes.arrayBuffer();
+    console.log("[generate-3d] GLB downloaded, size:", glbBuffer.byteLength);
 
     const storagePath = `3d/${dishId}.glb`;
     const { error: uploadError } = await supabase.storage
@@ -216,7 +231,7 @@ Deno.serve(async (req) => {
       .getPublicUrl(storagePath);
     const publicGlbUrl = publicUrlData.publicUrl;
 
-    // ── Step 7: Update status to ready ────────────────────────────────────
+    // ── Step 5: Update status to ready ────────────────────────────────────
     const { error: dbError } = await supabase
       .from("menu_item_models")
       .upsert(
