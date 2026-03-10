@@ -68,15 +68,35 @@ async function queueJoin(
   throw new Error("queueJoin: all retries failed");
 }
 
-async function waitResult(sessionHash: string, hfToken: string, timeoutMs = 180_000): Promise<unknown[]> {
-  const url = `${SPACE_URL}/gradio_api/queue/data?session_hash=${sessionHash}`;
-  console.log(`[generate-3d] SSE connecting: ${url}`);
+// Calls a Gradio function via queue/join and reads the SSE result
+async function gradioCall(
+  fnIndex: number,
+  data: unknown[],
+  sessionHash: string,
+  hfToken: string,
+  timeoutMs = 180_000
+): Promise<unknown[]> {
+  // 1. Submit job
+  const joinRes = await fetch(`${SPACE_URL}/gradio_api/queue/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${hfToken}` },
+    body: JSON.stringify({ fn_index: fnIndex, data, session_hash: sessionHash }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!joinRes.ok) {
+    const txt = await joinRes.text().catch(() => "");
+    throw new Error(`queue/join failed ${joinRes.status}: ${txt}`);
+  }
+  const joinJson = await joinRes.json();
+  console.log(`[generate-3d] queued fn_index=${fnIndex}, event_id=${joinJson.event_id}`);
 
+  // 2. Read SSE stream for result
+  const sseUrl = `${SPACE_URL}/gradio_api/queue/data?session_hash=${sessionHash}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(sseUrl, {
       headers: { Authorization: `Bearer ${hfToken}`, Accept: "text/event-stream" },
       signal: controller.signal,
     });
@@ -92,7 +112,6 @@ async function waitResult(sessionHash: string, hfToken: string, timeoutMs = 180_
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
-      // Parse SSE events from buffer
       const parts = buffer.split("\n\n");
       buffer = parts.pop() ?? "";
 
@@ -101,21 +120,26 @@ async function waitResult(sessionHash: string, hfToken: string, timeoutMs = 180_
         if (!dataLine) continue;
         try {
           const json = JSON.parse(dataLine.slice(6));
-          console.log(`[generate-3d] SSE event: ${json.msg}`);
-
-          if (json.msg === "process_completed" && json.output?.data) {
-            reader.cancel();
-            return json.output.data as unknown[];
+          // Only care about events for our fn_index
+          if (json.fn_index !== undefined && json.fn_index !== fnIndex) continue;
+          
+          if (json.msg === "estimation") {
+            console.log(`[generate-3d] fn_index=${fnIndex} queue position: ${json.rank}/${json.queue_size}`);
           }
-          if (json.msg === "process_completed" && json.output?.error) {
-            throw new Error(`Gradio error: ${json.output.error}`);
+          if (json.msg === "process_starts") {
+            console.log(`[generate-3d] fn_index=${fnIndex} processing started`);
           }
-          if (json.msg === "close_stream") {
-            throw new Error("Stream closed without result");
+          if (json.msg === "process_completed") {
+            reader.cancel().catch(() => {});
+            if (json.output?.error) throw new Error(`Gradio error: ${json.output.error}`);
+            if (json.output?.data) return json.output.data as unknown[];
+            throw new Error("process_completed but no data");
+          }
+          if (json.msg === "close_stream" || json.msg === "error") {
+            throw new Error(`Stream error: ${JSON.stringify(json)}`);
           }
         } catch (e) {
-          if (String(e).includes("Gradio error") || String(e).includes("Stream closed")) throw e;
-          // ignore parse errors
+          if (String(e).includes("Gradio error") || String(e).includes("Stream") || String(e).includes("no data")) throw e;
         }
       }
     }
@@ -138,9 +162,7 @@ async function getFnIndexes(hfToken: string): Promise<Record<string, number>> {
       if (info.named_endpoints) {
         const names = Object.keys(info.named_endpoints);
         names.forEach((name, i) => {
-          // Strip leading slash
-          const clean = name.replace(/^\//, "");
-          result[clean] = i;
+          result[name.replace(/^\//, "")] = i;
         });
       }
       return {
@@ -175,7 +197,6 @@ async function runPipeline(
 ): Promise<void> {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Utilise la bonne table : menu_item_models (pas menu_items)
   const updateStatus = async (status: string, extra: Record<string, unknown> = {}) => {
     console.log(`[generate-3d] Updating status → ${status}`, extra);
     const { error } = await supabase
@@ -185,58 +206,55 @@ async function runPipeline(
   };
 
   try {
-    // 0. Réveille le Space
     await waitForSpaceReady(hfToken);
     await updateStatus("processing");
 
-    const sessionHash = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
     const fnIdx = await getFnIndexes(hfToken);
     console.log("[generate-3d] fnIndexes:", JSON.stringify(fnIdx));
 
-    // 1. Fetch image & convert to base64 data URL
+    // 1. Fetch image & convert to base64
     console.log("[generate-3d] Fetching image:", imageUrl);
     const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(20000) });
     if (!imgRes.ok) throw new Error(`Cannot fetch image: ${imgRes.status}`);
     const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
-    
-    // Build base64 in chunks to avoid stack overflow on large images
     let imgBase64 = "";
     const chunkSize = 8192;
     for (let i = 0; i < imgBytes.length; i += chunkSize) {
       imgBase64 += String.fromCharCode(...imgBytes.slice(i, i + chunkSize));
     }
     imgBase64 = btoa(imgBase64);
-    
     const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
     const imageDataUrl = `data:${mimeType};base64,${imgBase64}`;
     console.log(`[generate-3d] Image loaded: ${(imgBytes.length / 1024).toFixed(0)} KB`);
 
+    // Each Gradio call gets its own session_hash so SSE streams don't conflict
     // 2. Preprocess
-    console.log("[generate-3d] 1/3 preprocess_image (fn_index:", fnIdx.preprocess_image, ")");
-    const preprocessId = await queueJoin(
+    console.log("[generate-3d] 1/3 preprocess_image");
+    const sess1 = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
+    const [processedImage] = await gradioCall(
       fnIdx.preprocess_image,
       [{ path: imageDataUrl, url: imageDataUrl, orig_name: "dish.jpg", meta: { _type: "gradio.FileData" } }],
-      sessionHash,
-      hfToken
+      sess1, hfToken
     );
-    const [processedImage] = await waitResult(preprocessId, hfToken);
     console.log("[generate-3d] preprocess result:", JSON.stringify(processedImage).slice(0, 200));
 
     // 3. Image → 3D
-    console.log("[generate-3d] 2/3 image_to_3d (fn_index:", fnIdx.image_to_3d, ")");
-    const gen3dId = await queueJoin(
+    console.log("[generate-3d] 2/3 image_to_3d");
+    const sess2 = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
+    const [modelState] = await gradioCall(
       fnIdx.image_to_3d,
       [processedImage, 0, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0],
-      sessionHash,
-      hfToken
+      sess2, hfToken, 300_000
     );
-    const [modelState] = await waitResult(gen3dId, hfToken, 180_000);
     console.log("[generate-3d] image_to_3d result:", JSON.stringify(modelState).slice(0, 200));
 
     // 4. Extract GLB
-    console.log("[generate-3d] 3/3 extract_glb (fn_index:", fnIdx.extract_glb, ")");
-    const glbId = await queueJoin(fnIdx.extract_glb, [modelState, 300000, 2048], sessionHash, hfToken);
-    const [glbInfo] = await waitResult(glbId, hfToken, 60_000) as [{ url?: string; path?: string }];
+    console.log("[generate-3d] 3/3 extract_glb");
+    const sess3 = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
+    const [glbInfo] = await gradioCall(
+      fnIdx.extract_glb, [modelState, 300000, 2048],
+      sess3, hfToken, 120_000
+    ) as [{ url?: string; path?: string }];
     console.log("[generate-3d] extract_glb result:", JSON.stringify(glbInfo).slice(0, 300));
     
     const glbUrl = glbInfo?.url ?? `${SPACE_URL}/gradio_api/file=${glbInfo?.path}`;
