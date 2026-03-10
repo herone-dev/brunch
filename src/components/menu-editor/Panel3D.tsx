@@ -1,9 +1,8 @@
 // src/components/menu-editor/Panel3D.tsx
-// Upload de photos + génération 3D via TRELLIS.2 (async + Supabase Realtime)
+// Upload de photos + génération 3D via TRELLIS.2 (appel direct frontend)
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +12,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useGenerate3D } from "@/hooks/useGenerate3D";
 
-// ─── Statuts possibles (alignés avec model_status enum en DB) ────────────────
 type Status = "idle" | "uploading" | "pending" | "processing" | "ready" | "failed";
 
 const STATUS_LABELS: Record<Status, string> = {
@@ -27,15 +26,9 @@ const STATUS_LABELS: Record<Status, string> = {
 };
 
 const STATUS_PROGRESS: Record<Status, number> = {
-  idle:       0,
-  uploading:  15,
-  pending:    30,
-  processing: 60,
-  ready:      100,
-  failed:     0,
+  idle: 0, uploading: 15, pending: 30, processing: 60, ready: 100, failed: 0,
 };
 
-// ─── Props ────────────────────────────────────────────────────────────────────
 interface Panel3DProps {
   dishId: string;
   existingModelUrl?: string | null;
@@ -43,65 +36,25 @@ interface Panel3DProps {
   onModelReady?: (glbUrl: string) => void;
 }
 
-// ─── Composant ────────────────────────────────────────────────────────────────
 export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady }: Panel3DProps) {
-  const initStatus = (): Status => {
-    if (existingStatus === "ready" && existingModelUrl) return "ready";
-    if (existingStatus === "processing") return "processing";
-    if (existingStatus === "pending") return "pending";
-    if (existingStatus === "failed") return "failed";
-    return "idle";
-  };
-
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
-  const [status, setStatus] = useState<Status>(initStatus);
-  const [modelUrl, setModelUrl] = useState<string | null>(existingModelUrl ?? null);
 
-  // ── Supabase Realtime : écoute les changements sur menu_item_models ───────
-  useEffect(() => {
-    // N'écoute que si une génération est en cours
-    if (status === "idle" || status === "ready" || status === "uploading") return;
+  const { status, modelUrl, generate, reset: resetPipeline, setStatus, setModelUrl } = useGenerate3D({
+    dishId,
+    onModelReady,
+  });
 
-    const channel = supabase
-      .channel(`dish-model-${dishId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "menu_item_models",
-          filter: `item_id=eq.${dishId}`,
-        },
-        (payload) => {
-          const row = payload.new as {
-            status: string;
-            glb_path: string | null;
-          };
+  // Init from existing state
+  useState(() => {
+    if (existingStatus === "ready" && existingModelUrl) {
+      setStatus("ready");
+      setModelUrl(existingModelUrl);
+    } else if (existingStatus === "failed") {
+      setStatus("failed");
+    }
+  });
 
-          console.log("[Panel3D] Realtime update:", row.status);
-
-          if (row.status === "pending") setStatus("pending");
-          if (row.status === "processing") setStatus("processing");
-          if (row.status === "ready" && row.glb_path) {
-            setStatus("ready");
-            // Build public URL from storage path
-            const { data } = supabase.storage.from("models").getPublicUrl(row.glb_path);
-            setModelUrl(data.publicUrl);
-            onModelReady?.(data.publicUrl);
-            toast.success("Modèle 3D généré !");
-          }
-          if (row.status === "failed") {
-            setStatus("failed");
-            toast.error("Erreur lors de la génération. Réessaie.");
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [dishId, status, onModelReady]);
-
-  // ── Dropzone ──────────────────────────────────────────────────────────────
+  // Dropzone
   const onDrop = useCallback((accepted: File[]) => {
     const newPhotos = accepted.slice(0, 6 - photos.length).map((f) => ({
       file: f,
@@ -121,61 +74,20 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
     setPhotos((p) => { URL.revokeObjectURL(p[i].preview); return p.filter((_, j) => j !== i); });
   };
 
-  // ── Upload photos vers Supabase Storage ───────────────────────────────────
-  const uploadPhotos = async (): Promise<string[]> => {
-    const urls: string[] = [];
-    for (const { file } of photos) {
-      const ext = file.name.split(".").pop();
-      const path = `dish-photos/${dishId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("menu-media").upload(path, file, { upsert: true });
-      if (error) throw new Error(`Upload échoué: ${error.message}`);
-      const { data } = supabase.storage.from("menu-media").getPublicUrl(path);
-      urls.push(data.publicUrl);
-    }
-    return urls;
-  };
-
-  // ── Lancer la génération ──────────────────────────────────────────────────
   const handleGenerate = async () => {
     if (photos.length === 0) { toast.error("Ajoute au moins une photo."); return; }
-
-    try {
-      // 1. Upload des photos
-      setStatus("uploading");
-      const urls = await uploadPhotos();
-
-      // 2. Appel Edge Function — répond en <1s et lance en background
-      setStatus("pending");
-      const { data, error } = await supabase.functions.invoke("generate-3d", {
-        body: { dishId, imageUrl: urls[0] },
-      });
-
-      if (error) throw new Error(error.message);
-      if (!data?.success) throw new Error(data?.error ?? "Erreur inconnue");
-
-      // L'Edge Function a répondu, le pipeline tourne en background.
-      // Supabase Realtime va notifier les prochains changements de statut.
-      toast.info("Génération lancée ! Le modèle sera prêt dans 1-3 minutes.");
-
-    } catch (err) {
-      setStatus("failed");
-      toast.error("Impossible de lancer la génération.");
-      console.error("[Panel3D]", err);
-    }
+    await generate(photos[0].file);
   };
 
   const handleReset = () => {
     setPhotos([]);
-    setStatus("idle");
-    setModelUrl(null);
+    resetPipeline();
   };
 
   const isProcessing = status === "pending" || status === "processing" || status === "uploading";
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 p-4">
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -185,7 +97,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
         <StatusBadge status={status} />
       </div>
 
-      {/* Zone d'upload (masquée si modèle prêt) */}
+      {/* Upload zone */}
       {status !== "ready" && (
         <>
           <div
@@ -240,7 +152,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
         </>
       )}
 
-      {/* Barre de progression + message */}
+      {/* Progress bar */}
       {isProcessing && (
         <div className="space-y-2">
           <Progress value={STATUS_PROGRESS[status]} className="h-2" />
@@ -248,15 +160,13 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
             <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
             <p className="text-xs text-muted-foreground">{STATUS_LABELS[status]}</p>
           </div>
-          {(status === "pending" || status === "processing") && (
-            <p className="text-xs text-muted-foreground/50 text-center">
-              Tu peux fermer cette fenêtre — tu seras notifié quand c'est prêt.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground/50 text-center">
+            Ne ferme pas cette page pendant la génération.
+          </p>
         </div>
       )}
 
-      {/* Erreur */}
+      {/* Error */}
       {status === "failed" && (
         <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 flex gap-2 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -264,7 +174,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
         </div>
       )}
 
-      {/* Modèle prêt */}
+      {/* Model ready */}
       {status === "ready" && modelUrl && (
         <div className="space-y-3">
           <div className="rounded-xl overflow-hidden bg-neutral-900 aspect-square">
@@ -284,33 +194,26 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
         </div>
       )}
 
-      {/* Boutons */}
+      {/* Buttons */}
       <div className="flex gap-2">
         {(status === "idle" || status === "failed") && (
-          <Button
-            onClick={handleGenerate}
-            disabled={photos.length === 0}
-            className="flex-1 gap-2"
-          >
+          <Button onClick={handleGenerate} disabled={photos.length === 0} className="flex-1 gap-2">
             <Wand2 className="h-4 w-4" />
             Générer en 3D
           </Button>
         )}
-
         {isProcessing && (
           <Button disabled className="flex-1 gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
             {STATUS_LABELS[status]}
           </Button>
         )}
-
         {(status === "ready" || status === "failed") && (
           <Button variant="outline" onClick={handleReset} className="gap-2">
             <Trash2 className="h-4 w-4" />
             Recommencer
           </Button>
         )}
-
         {status === "ready" && modelUrl && (
           <Button variant="outline" asChild>
             <a href={modelUrl} download target="_blank" rel="noreferrer">↓ GLB</a>
@@ -330,7 +233,6 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
   );
 }
 
-// ─── Badge statut ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: Status }) {
   const map: Record<Status, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; spin?: boolean }> = {
     idle:       { label: "Prêt",          variant: "outline" },
@@ -343,14 +245,10 @@ function StatusBadge({ status }: { status: Status }) {
   const { label, variant, spin } = map[status];
   return (
     <Badge variant={variant} className="gap-1 text-xs">
-      {spin
-        ? <Loader2 className="h-3 w-3 animate-spin" />
-        : status === "ready"
-          ? <CheckCircle className="h-3 w-3" />
-          : status === "failed"
-            ? <AlertCircle className="h-3 w-3" />
-            : <Box className="h-3 w-3" />
-      }
+      {spin ? <Loader2 className="h-3 w-3 animate-spin" />
+        : status === "ready" ? <CheckCircle className="h-3 w-3" />
+        : status === "failed" ? <AlertCircle className="h-3 w-3" />
+        : <Box className="h-3 w-3" />}
       {label}
     </Badge>
   );
