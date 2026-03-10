@@ -205,20 +205,16 @@ async function runPipeline(
     const fnIdx = await getFnIndexes(hfToken);
     console.log("[generate-3d] fnIndexes:", JSON.stringify(fnIdx));
 
-    // 1. Fetch image & convert to base64
+    // 1. Fetch image & upload to Gradio space
     console.log("[generate-3d] Fetching image:", imageUrl);
     const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(20000) });
     if (!imgRes.ok) throw new Error(`Cannot fetch image: ${imgRes.status}`);
     const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
-    let imgBase64 = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < imgBytes.length; i += chunkSize) {
-      imgBase64 += String.fromCharCode(...imgBytes.slice(i, i + chunkSize));
-    }
-    imgBase64 = btoa(imgBase64);
-    const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
-    const imageDataUrl = `data:${mimeType};base64,${imgBase64}`;
     console.log(`[generate-3d] Image loaded: ${(imgBytes.length / 1024).toFixed(0)} KB`);
+
+    // Upload to Gradio space first
+    const ext = imageUrl.split(".").pop()?.split("?")[0] || "jpg";
+    const gradioPath = await gradioUpload(imgBytes, `dish.${ext}`, hfToken);
 
     // Each Gradio call gets its own session_hash so SSE streams don't conflict
     // 2. Preprocess
@@ -226,7 +222,7 @@ async function runPipeline(
     const sess1 = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
     const [processedImage] = await gradioCall(
       fnIdx.preprocess_image,
-      [{ path: imageDataUrl, url: imageDataUrl, orig_name: "dish.jpg", meta: { _type: "gradio.FileData" } }],
+      [{ path: gradioPath, meta: { _type: "gradio.FileData" } }],
       sess1, hfToken
     );
     console.log("[generate-3d] preprocess result:", JSON.stringify(processedImage).slice(0, 200));
