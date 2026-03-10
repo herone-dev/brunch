@@ -178,10 +178,8 @@ Deno.serve(async (req) => {
     // ── Step 0: Ensure Space is awake ─────────────────────────────────────
     await waitForSpaceReady(hfToken);
 
-    // ── Step 1: Start session ─────────────────────────────────────────────
-    console.log("[generate-3d] Step 1: start_session...");
-    await gradioCall("start_session", [], hfToken, sessionHash);
-    console.log("[generate-3d] Session started OK");
+    // session_hash alone maintains state — no need for start_session via REST API
+    console.log("[generate-3d] Session hash ready:", sessionHash);
 
     // ── Step 2: Preprocess image ──────────────────────────────────────────
     console.log("[generate-3d] Step 2: preprocess_image...");
