@@ -38,41 +38,44 @@ async function waitForSpaceReady(hfToken: string): Promise<void> {
   throw new Error("Space did not wake up within 5 minutes");
 }
 
-// ─── Gradio SSE call ──────────────────────────────────────────────────────────
+// ─── Gradio Named REST API call ───────────────────────────────────────────────
+// Uses /gradio_api/call/<endpoint> (POST to submit, GET to stream results)
+// This is simpler and more reliable than queue/join + SSE with fn_index.
 
-async function gradioCall(
-  fnIndex: number,
+async function gradioCallNamed(
+  endpoint: string,
   data: unknown[],
-  sessionHash: string,
   hfToken: string,
-  timeoutMs = 180_000
+  timeoutMs = 300_000
 ): Promise<unknown[]> {
-  // 1. Submit job
-  const joinRes = await fetch(`${SPACE_URL}/gradio_api/queue/join`, {
+  // 1. Submit
+  const submitUrl = `${SPACE_URL}/gradio_api/call${endpoint}`;
+  console.log(`[generate-3d] POST ${endpoint}`);
+  const submitRes = await fetch(submitUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${hfToken}` },
-    body: JSON.stringify({ fn_index: fnIndex, data, session_hash: sessionHash }),
-    signal: AbortSignal.timeout(15000),
+    body: JSON.stringify({ data }),
+    signal: AbortSignal.timeout(30000),
   });
-  if (!joinRes.ok) {
-    const txt = await joinRes.text().catch(() => "");
-    throw new Error(`queue/join failed ${joinRes.status}: ${txt}`);
+  if (!submitRes.ok) {
+    const txt = await submitRes.text().catch(() => "");
+    throw new Error(`POST ${endpoint} failed ${submitRes.status}: ${txt}`);
   }
-  const joinJson = await joinRes.json();
-  console.log(`[generate-3d] queued fn_index=${fnIndex}, event_id=${joinJson.event_id}`);
+  const { event_id } = await submitRes.json();
+  console.log(`[generate-3d] ${endpoint} event_id=${event_id}`);
 
-  // 2. Read SSE stream for result
-  const sseUrl = `${SPACE_URL}/gradio_api/queue/data?session_hash=${sessionHash}`;
+  // 2. Read SSE result stream
+  const resultUrl = `${SPACE_URL}/gradio_api/call${endpoint}/${event_id}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(sseUrl, {
+    const res = await fetch(resultUrl, {
       headers: { Authorization: `Bearer ${hfToken}`, Accept: "text/event-stream" },
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`SSE connect failed: ${res.status}`);
-    if (!res.body) throw new Error("SSE: no body");
+    if (!res.ok) throw new Error(`GET ${endpoint}/${event_id} failed: ${res.status}`);
+    if (!res.body) throw new Error("No response body");
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -83,50 +86,50 @@ async function gradioCall(
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
+      // Parse SSE events (split by double newline)
       const parts = buffer.split("\n\n");
       buffer = parts.pop() ?? "";
 
       for (const part of parts) {
-        const dataLine = part.split("\n").find((l) => l.startsWith("data: "));
-        if (!dataLine) continue;
-        try {
-          const json = JSON.parse(dataLine.slice(6));
-          // Only care about events for our fn_index
-          if (json.fn_index !== undefined && json.fn_index !== fnIndex) continue;
+        const lines = part.trim().split("\n");
+        const eventLine = lines.find((l) => l.startsWith("event: "));
+        const dataLine = lines.find((l) => l.startsWith("data: "));
 
-          if (json.msg === "estimation") {
-            console.log(`[generate-3d] fn_index=${fnIndex} queue: ${json.rank}/${json.queue_size}`);
-          }
-          if (json.msg === "process_starts") {
-            console.log(`[generate-3d] fn_index=${fnIndex} processing started`);
-          }
-          if (json.msg === "process_completed") {
-            reader.cancel().catch(() => {});
-            console.log(`[generate-3d] fn_index=${fnIndex} completed: success=${json.success}, output=${JSON.stringify(json.output).slice(0, 500)}`);
-            
-            if (!json.success) {
-              const errMsg = json.output?.error || json.title || "Unknown Gradio error";
-              throw new Error(`Gradio fn_index=${fnIndex} failed: ${errMsg}`);
-            }
-            if (json.output?.data) return json.output.data as unknown[];
-            if (json.data) return json.data as unknown[];
-            // Some endpoints return empty data on success (like start_session)
+        if (!eventLine) continue;
+        const event = eventLine.slice(7).trim();
+
+        if (event === "heartbeat") continue;
+
+        if (event === "log") {
+          if (dataLine) console.log(`[generate-3d] ${endpoint} log:`, dataLine.slice(6));
+          continue;
+        }
+
+        if (event === "error") {
+          const errMsg = dataLine ? dataLine.slice(6) : "Unknown error";
+          reader.cancel().catch(() => {});
+          throw new Error(`${endpoint} error: ${errMsg}`);
+        }
+
+        if (event === "complete") {
+          reader.cancel().catch(() => {});
+          if (!dataLine) {
+            console.log(`[generate-3d] ${endpoint} completed (no data — void endpoint)`);
             return [];
           }
-          if (json.msg === "close_stream") {
-            // Normal stream close, continue
-            reader.cancel().catch(() => {});
+          try {
+            const parsed = JSON.parse(dataLine.slice(6));
+            console.log(`[generate-3d] ${endpoint} completed:`, JSON.stringify(parsed).slice(0, 500));
+            if (Array.isArray(parsed)) return parsed;
+            return [];
+          } catch {
+            console.log(`[generate-3d] ${endpoint} completed (unparseable data)`);
             return [];
           }
-          if (json.msg === "error") {
-            throw new Error(`Stream error: ${JSON.stringify(json)}`);
-          }
-        } catch (e) {
-          if (String(e).includes("Gradio") || String(e).includes("Stream")) throw e;
         }
       }
     }
-    throw new Error("SSE stream ended without result");
+    throw new Error(`${endpoint}: SSE stream ended without complete event`);
   } finally {
     clearTimeout(timeout);
   }
@@ -184,17 +187,9 @@ async function runPipeline(
     await waitForSpaceReady(hfToken);
     await updateStatus("processing");
 
-    // Use ONE session_hash for the entire pipeline — TRELLIS stores state per session
-    const sessionHash = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
-    console.log("[generate-3d] Session hash:", sessionHash);
-
-    // fn_index mapping from /gradio_api/info:
-    // 0: start_session, 1: preprocess_image, 2: get_seed, 3: lambda, 
-    // 4: image_to_3d, 5: lambda_1, 6: extract_glb
-
-    // Step 0: Initialize session (required by TRELLIS.2)
+    // Step 0: Initialize session (void endpoint, no params/returns)
     console.log("[generate-3d] 0/3 start_session");
-    await gradioCall(0, [], sessionHash, hfToken, 30_000);
+    await gradioCallNamed("/start_session", [], hfToken, 60_000);
     console.log("[generate-3d] Session started");
 
     // Step 1: Fetch image & upload to Gradio
@@ -209,17 +204,18 @@ async function runPipeline(
 
     // Step 2: Preprocess image
     console.log("[generate-3d] 1/3 preprocess_image");
-    const [processedImage] = await gradioCall(
-      1, // preprocess_image
+    const preprocessResult = await gradioCallNamed(
+      "/preprocess_image",
       [{ path: gradioPath, meta: { _type: "gradio.FileData" } }],
-      sessionHash, hfToken
+      hfToken
     );
+    const processedImage = preprocessResult[0];
     console.log("[generate-3d] preprocess result:", JSON.stringify(processedImage).slice(0, 300));
 
-    // Step 3: Image → 3D (all params with defaults from the API spec)
+    // Step 3: Image → 3D (15 params matching the API spec)
     console.log("[generate-3d] 2/3 image_to_3d");
-    const [modelHtml] = await gradioCall(
-      4, // image_to_3d
+    const i3dResult = await gradioCallNamed(
+      "/image_to_3d",
       [
         processedImage,  // image (preprocessed)
         0,               // seed
@@ -237,16 +233,16 @@ async function runPipeline(
         12,              // tex_slat_sampling_steps
         3.0,             // tex_slat_rescale_t
       ],
-      sessionHash, hfToken, 300_000
+      hfToken, 300_000
     );
-    console.log("[generate-3d] image_to_3d result:", JSON.stringify(modelHtml).slice(0, 300));
+    console.log("[generate-3d] image_to_3d result:", JSON.stringify(i3dResult).slice(0, 300));
 
-    // Step 4: Extract GLB (only 2 params — model state is in session)
+    // Step 4: Extract GLB
     console.log("[generate-3d] 3/3 extract_glb");
-    const extractResult = await gradioCall(
-      6, // extract_glb
+    const extractResult = await gradioCallNamed(
+      "/extract_glb",
       [300000, 2048],  // decimation_target, texture_size
-      sessionHash, hfToken, 120_000
+      hfToken, 120_000
     );
     console.log("[generate-3d] extract_glb result:", JSON.stringify(extractResult).slice(0, 500));
 
