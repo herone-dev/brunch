@@ -38,34 +38,25 @@ async function waitForSpaceReady(hfToken: string): Promise<void> {
 
 // ─── Gradio helpers ───────────────────────────────────────────────────────────
 
-async function queueJoin(
-  fnIndex: number,
-  data: unknown[],
-  sessionHash: string,
-  hfToken: string,
-  retries = 3
-): Promise<string> {
-  for (let i = 1; i <= retries; i++) {
-    try {
-      const res = await fetch(`${SPACE_URL}/gradio_api/queue/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${hfToken}` },
-        body: JSON.stringify({ fn_index: fnIndex, data, session_hash: sessionHash }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.event_id) return json.event_id;
-      }
-      const text = await res.text().catch(() => "");
-      throw new Error(`queue/join ${res.status}: ${text}`);
-    } catch (err) {
-      console.error(`[generate-3d] queueJoin attempt ${i}/${retries}:`, err);
-      if (i === retries) throw err;
-      await sleep(3000);
-    }
+// Upload a file to the Gradio space and get the server path
+async function gradioUpload(fileBytes: Uint8Array, filename: string, hfToken: string): Promise<string> {
+  const formData = new FormData();
+  formData.append("files", new Blob([fileBytes]), filename);
+  
+  const res = await fetch(`${SPACE_URL}/gradio_api/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${hfToken}` },
+    body: formData,
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Gradio upload failed ${res.status}: ${txt}`);
   }
-  throw new Error("queueJoin: all retries failed");
+  const paths = await res.json();
+  console.log("[generate-3d] Uploaded to Gradio:", JSON.stringify(paths));
+  if (Array.isArray(paths) && paths.length > 0) return paths[0];
+  throw new Error("Gradio upload returned no path");
 }
 
 // Calls a Gradio function via queue/join and reads the SSE result
