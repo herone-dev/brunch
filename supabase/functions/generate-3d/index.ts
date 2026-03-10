@@ -1,330 +1,233 @@
 // supabase/functions/generate-3d/index.ts
-// Edge Function: calls TRELLIS.2 via Gradio REST API, stores GLB in Supabase Storage,
-// updates menu_item_models status.
+// Architecture async : répond immédiatement au frontend, génère en arrière-plan.
+// Le frontend reçoit les mises à jour via Supabase Realtime.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const SPACE_URL = "https://microsoft-trellis-2.hf.space";
 
-// ─── Wait for Space to be awake ──────────────────────────────────────────────
+// ─── Wake-up du Space ─────────────────────────────────────────────────────────
 
-async function waitForSpaceReady(hfToken: string, maxWaitMs = 300_000): Promise<void> {
+async function waitForSpaceReady(hfToken: string): Promise<void> {
+  const MAX_WAIT_MS = 5 * 60 * 1000;
+  const POLL_MS = 10_000;
   const start = Date.now();
-  console.log("[generate-3d] Checking if Space is awake...");
 
-  while (Date.now() - start < maxWaitMs) {
+  console.log("[generate-3d] Waiting for Space to wake up...");
+
+  while (Date.now() - start < MAX_WAIT_MS) {
     try {
       const res = await fetch(`${SPACE_URL}/gradio_api/info`, {
         headers: { Authorization: `Bearer ${hfToken}` },
+        signal: AbortSignal.timeout(8000),
       });
       if (res.ok) {
-        const body = await res.text();
-        if (body.includes("named_endpoints")) {
-          console.log("[generate-3d] Space is awake and ready!");
-          return;
-        }
+        console.log(`[generate-3d] Space ready (${Math.round((Date.now() - start) / 1000)}s)`);
+        return;
       }
-      console.log(`[generate-3d] Space not ready (status ${res.status}), waiting...`);
-      await res.text(); // consume body
-    } catch (e) {
-      console.log(`[generate-3d] Space check failed: ${e}, retrying...`);
-    }
-    await new Promise((r) => setTimeout(r, 10_000));
+    } catch (_) { /* continue */ }
+    console.log("[generate-3d] Space sleeping, retry in 10s...");
+    await sleep(POLL_MS);
   }
-  throw new Error("TRELLIS.2 Space did not wake up within timeout");
+  throw new Error("Space did not wake up within 5 minutes");
 }
 
-// ─── Gradio REST helper ──────────────────────────────────────────────────────
+// ─── Gradio helpers ───────────────────────────────────────────────────────────
 
-async function gradioCall(
-  apiName: string,
+async function queueJoin(
+  fnIndex: number,
   data: unknown[],
-  hfToken: string,
   sessionHash: string,
-): Promise<unknown[]> {
-  console.log(`[generate-3d] Calling /${apiName} with session ${sessionHash}`);
-  console.log(`[generate-3d] Payload: ${JSON.stringify(data).slice(0, 500)}`);
-
-  // POST to queue the call
-  const postRes = await fetch(`${SPACE_URL}/gradio_api/call/${apiName}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${hfToken}`,
-    },
-    body: JSON.stringify({ data, session_hash: sessionHash }),
-  });
-
-  if (!postRes.ok) {
-    const errText = await postRes.text();
-    throw new Error(`Gradio POST /call/${apiName} failed (${postRes.status}): ${errText.slice(0, 500)}`);
-  }
-
-  const postBody = await postRes.json();
-  const eventId = postBody.event_id;
-  if (!eventId) {
-    throw new Error(`No event_id from /call/${apiName}: ${JSON.stringify(postBody)}`);
-  }
-
-  console.log(`[generate-3d] Got event_id: ${eventId}, polling SSE...`);
-
-  // GET SSE stream — poll with retries for long-running tasks
-  const sseUrl = `${SPACE_URL}/gradio_api/call/${apiName}/${eventId}`;
-  let attempts = 0;
-  const maxAttempts = 3;
-
-  while (attempts < maxAttempts) {
-    attempts++;
-    const sseRes = await fetch(sseUrl, {
-      headers: { Authorization: `Bearer ${hfToken}` },
-    });
-
-    if (!sseRes.ok) {
-      const sseErr = await sseRes.text();
-      if (attempts < maxAttempts) {
-        console.log(`[generate-3d] SSE attempt ${attempts} failed (${sseRes.status}), retrying in 5s...`);
-        await new Promise((r) => setTimeout(r, 5000));
-        continue;
+  hfToken: string,
+  retries = 3
+): Promise<string> {
+  for (let i = 1; i <= retries; i++) {
+    try {
+      const res = await fetch(`${SPACE_URL}/queue/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${hfToken}` },
+        body: JSON.stringify({ fn_index: fnIndex, data, session_hash: sessionHash }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.event_id) return json.event_id;
       }
-      throw new Error(`Gradio SSE failed (${sseRes.status}): ${sseErr.slice(0, 500)}`);
+      throw new Error(`queue/join ${res.status}`);
+    } catch (err) {
+      if (i === retries) throw err;
+      await sleep(3000);
     }
-
-    const text = await sseRes.text();
-    console.log(`[generate-3d] SSE response for /${apiName} (first 1000 chars):`, text.slice(0, 1000));
-
-    // Parse SSE events
-    const lines = text.split("\n");
-    let currentEvent = "";
-    let completeData: string | null = null;
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-
-      if (trimmed.startsWith("event:")) {
-        currentEvent = trimmed.slice(6).trim();
-      } else if (trimmed.startsWith("data:")) {
-        const dataStr = trimmed.slice(5).trim();
-
-        if (currentEvent === "error") {
-          throw new Error(`TRELLIS.2 /${apiName} returned error: ${dataStr}`);
-        }
-
-        if (currentEvent === "complete") {
-          completeData = dataStr;
-          break;
-        }
-      }
-    }
-
-    if (completeData) {
-      const parsed = JSON.parse(completeData);
-      console.log(`[generate-3d] /${apiName} result:`, JSON.stringify(parsed).slice(0, 500));
-      return parsed;
-    }
-
-    // If we got a response but no complete event, it might still be processing
-    if (text.includes("event: heartbeat") || text.includes("event: generating")) {
-      console.log(`[generate-3d] /${apiName} still processing, retrying SSE...`);
-      await new Promise((r) => setTimeout(r, 5000));
-      continue;
-    }
-
-    throw new Error(`No complete event from SSE for /${apiName}. Response: ${text.slice(0, 2000)}`);
   }
-
-  throw new Error(`Max SSE attempts reached for /${apiName}`);
+  throw new Error("queueJoin: all retries failed");
 }
 
-// ─── Main handler ────────────────────────────────────────────────────────────
+async function waitResult(eventId: string, hfToken: string, timeoutMs = 130_000): Promise<unknown[]> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    await sleep(3000);
+    try {
+      const res = await fetch(`${SPACE_URL}/queue/status?event_id=${eventId}`, {
+        headers: { Authorization: `Bearer ${hfToken}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.status === 404) throw new Error("SSE 404: Space went back to sleep");
+      if (!res.ok) continue;
+
+      const json = await res.json();
+      if (json.status === "complete" && json.output?.data) return json.output.data as unknown[];
+      if (json.status === "error") throw new Error(`Gradio error: ${JSON.stringify(json)}`);
+    } catch (err) {
+      if (String(err).includes("404") || String(err).includes("sleep")) throw err;
+    }
+  }
+  throw new Error(`Timed out after ${timeoutMs / 1000}s`);
+}
+
+async function getFnIndexes(hfToken: string): Promise<Record<string, number>> {
+  try {
+    const res = await fetch(`${SPACE_URL}/gradio_api/info`, {
+      headers: { Authorization: `Bearer ${hfToken}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.ok) {
+      const info = await res.json();
+      const result: Record<string, number> = {};
+      if (info.named_endpoints) {
+        Object.keys(info.named_endpoints).forEach((name, i) => (result[name] = i));
+      }
+      return {
+        preprocess_image: result.preprocess_image ?? 0,
+        image_to_3d: result.image_to_3d ?? 2,
+        extract_glb: result.extract_glb ?? 3,
+      };
+    }
+  } catch (_) { /* use fallback */ }
+  return { preprocess_image: 0, image_to_3d: 2, extract_glb: 3 };
+}
+
+function validateGlb(buffer: ArrayBuffer): void {
+  if (buffer.byteLength < 12) throw new Error(`GLB trop petit: ${buffer.byteLength} bytes`);
+  const magic = new DataView(buffer).getUint32(0, true);
+  if (magic !== 0x46546C67) throw new Error(`Pas un GLB valide (magic: 0x${magic.toString(16)})`);
+  console.log(`[generate-3d] GLB OK: ${(buffer.byteLength / 1024).toFixed(0)} KB`);
+}
+
+function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
+// ─── Pipeline principal (tourne en arrière-plan) ──────────────────────────────
+
+async function runPipeline(
+  dishId: string,
+  imageUrl: string,
+  hfToken: string,
+  supabaseUrl: string,
+  supabaseKey: string
+): Promise<void> {
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const updateStatus = (status: string, extra: Record<string, unknown> = {}) =>
+    supabase.from("menu_items").update({ model_3d_status: status, ...extra }).eq("id", dishId);
+
+  try {
+    // 0. Réveille le Space
+    await waitForSpaceReady(hfToken);
+    await updateStatus("generating");
+
+    const sessionHash = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
+    const fnIdx = await getFnIndexes(hfToken);
+
+    // 1. Fetch image
+    const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(20000) });
+    if (!imgRes.ok) throw new Error(`Cannot fetch image: ${imgRes.status}`);
+    const imgBase64 = btoa(String.fromCharCode(...new Uint8Array(await imgRes.arrayBuffer())));
+    const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
+    const imageDataUrl = `data:${mimeType};base64,${imgBase64}`;
+
+    // 2. Preprocess
+    console.log("[generate-3d] 1/3 preprocess_image");
+    const preprocessId = await queueJoin(fnIdx.preprocess_image, [{ path: imageDataUrl, url: imageDataUrl }], sessionHash, hfToken);
+    const [processedImage] = await waitResult(preprocessId, hfToken);
+
+    // 3. Image → 3D
+    console.log("[generate-3d] 2/3 image_to_3d");
+    const gen3dId = await queueJoin(
+      fnIdx.image_to_3d,
+      [processedImage, 0, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0],
+      sessionHash,
+      hfToken
+    );
+    const [modelState] = await waitResult(gen3dId, hfToken, 130_000);
+
+    // 4. Extract GLB
+    console.log("[generate-3d] 3/3 extract_glb");
+    const glbId = await queueJoin(fnIdx.extract_glb, [modelState, 300000, 2048], sessionHash, hfToken);
+    const [glbInfo] = await waitResult(glbId, hfToken, 60_000) as [{ url?: string; path?: string }];
+    const glbUrl = glbInfo?.url ?? `${SPACE_URL}/file=${glbInfo?.path}`;
+
+    // 5. Download + validate GLB
+    const glbRes = await fetch(glbUrl, { headers: { Authorization: `Bearer ${hfToken}` }, signal: AbortSignal.timeout(60000) });
+    if (!glbRes.ok) throw new Error(`Cannot download GLB: ${glbRes.status}`);
+    const glbBuffer = await glbRes.arrayBuffer();
+    validateGlb(glbBuffer);
+
+    // 6. Upload vers Supabase Storage
+    const storagePath = `3d-models/${dishId}.glb`;
+    const { error: uploadErr } = await supabase.storage
+      .from("dish-models")
+      .upload(storagePath, glbBuffer, { contentType: "model/gltf-binary", upsert: true });
+    if (uploadErr) throw new Error(`Storage: ${uploadErr.message}`);
+
+    const { data: { publicUrl } } = supabase.storage.from("dish-models").getPublicUrl(storagePath);
+
+    // 7. Marque "ready" → déclenche Realtime côté frontend
+    await updateStatus("ready", { model_3d_url: publicUrl });
+    console.log("[generate-3d] ✅ Done:", publicUrl);
+
+  } catch (err) {
+    console.error("[generate-3d] ❌ Pipeline error:", err);
+    await updateStatus("error");
+  }
+}
+
+// ─── Handler HTTP (répond immédiatement) ─────────────────────────────────────
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  let dishId: string | undefined;
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const hfToken = Deno.env.get("HF_TOKEN");
-    if (!hfToken) throw new Error("HF_TOKEN not set");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    if (!hfToken) throw new Error("HF_TOKEN not configured");
 
-    const body = await req.json();
-    dishId = body.dishId;
-    const imageUrl = body.imageUrl;
+    const { dishId, imageUrl } = await req.json();
     if (!dishId || !imageUrl) throw new Error("dishId and imageUrl required");
 
-    const sessionHash = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-    console.log("[generate-3d] Starting. Session:", sessionHash, "Image:", imageUrl);
+    // Marque immédiatement "waking_up" pour que le frontend affiche le bon état
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    await supabase.from("menu_items").update({ model_3d_status: "waking_up" }).eq("id", dishId);
 
-    // Set status to processing
-    await supabase
-      .from("menu_item_models")
-      .upsert(
-        { item_id: dishId, status: "processing", updated_at: new Date().toISOString() },
-        { onConflict: "item_id" }
-      );
+    // Lance le pipeline en arrière-plan — ne bloque PAS la réponse HTTP
+    EdgeRuntime.waitUntil(runPipeline(dishId, imageUrl, hfToken, supabaseUrl, supabaseKey));
 
-    // ── Step 0: Ensure Space is awake ─────────────────────────────────────
-    await waitForSpaceReady(hfToken);
-
-    // session_hash alone maintains state — no need for start_session via REST API
-    console.log("[generate-3d] Session hash ready:", sessionHash);
-
-    // ── Step 2: Preprocess image ──────────────────────────────────────────
-    console.log("[generate-3d] Step 2: preprocess_image...");
-    const imgPayload = {
-      path: imageUrl,
-      url: imageUrl,
-      orig_name: "dish.jpg",
-      mime_type: "image/jpeg",
-      meta: { _type: "gradio.FileData" },
-    };
-    const preprocessResult = await gradioCall(
-      "preprocess_image",
-      [imgPayload],
-      hfToken,
-      sessionHash
-    );
-    const processedImage = preprocessResult[0];
-    console.log("[generate-3d] Preprocess done, result:", JSON.stringify(processedImage).slice(0, 300));
-
-    // ── Step 3: Generate 3D model ─────────────────────────────────────────
-    console.log("[generate-3d] Step 3: image_to_3d (this takes 1-3 min)...");
-    await gradioCall(
-      "image_to_3d",
-      [
-        processedImage, // image (FileData from preprocess)
-        0,              // seed
-        "1024",         // resolution
-        7.5,            // ss_guidance_strength
-        0.7,            // ss_guidance_rescale
-        12,             // ss_sampling_steps
-        5.0,            // ss_rescale_t
-        7.5,            // shape_slat_guidance_strength
-        0.5,            // shape_slat_guidance_rescale
-        12,             // shape_slat_sampling_steps
-        3.0,            // shape_slat_rescale_t
-        1.0,            // tex_slat_guidance_strength
-        0.0,            // tex_slat_guidance_rescale
-        12,             // tex_slat_sampling_steps
-        3.0,            // tex_slat_rescale_t
-      ],
-      hfToken,
-      sessionHash
-    );
-    console.log("[generate-3d] 3D generation done");
-
-    // ── Step 4: Extract GLB ───────────────────────────────────────────────
-    console.log("[generate-3d] Step 4: extract_glb...");
-    const glbResult = await gradioCall(
-      "extract_glb",
-      [300000, 2048],
-      hfToken,
-      sessionHash
-    );
-
-    // extract_glb returns [Model3dFileData, DownloadFileData]
-    const glbFileInfo = (glbResult[1] || glbResult[0]) as {
-      url?: string;
-      path?: string;
-      orig_name?: string;
-    };
-
-    let glbDownloadUrl: string;
-    if (glbFileInfo?.url) {
-      glbDownloadUrl = glbFileInfo.url.startsWith("http")
-        ? glbFileInfo.url
-        : `${SPACE_URL}${glbFileInfo.url}`;
-    } else if (glbFileInfo?.path) {
-      glbDownloadUrl = `${SPACE_URL}/gradio_api/file=${glbFileInfo.path}`;
-    } else {
-      throw new Error("No GLB URL or path in result: " + JSON.stringify(glbResult));
-    }
-
-    console.log("[generate-3d] GLB download URL:", glbDownloadUrl);
-
-    // ── Step 5: Download GLB & store ──────────────────────────────────────
-    console.log("[generate-3d] Step 5: downloading GLB...");
-    const glbRes = await fetch(glbDownloadUrl, {
-      headers: { Authorization: `Bearer ${hfToken}` },
-    });
-    if (!glbRes.ok) {
-      const errBody = await glbRes.text();
-      throw new Error(`Cannot download GLB (${glbRes.status}): ${errBody.slice(0, 500)}`);
-    }
-    const glbBuffer = await glbRes.arrayBuffer();
-    console.log("[generate-3d] GLB downloaded, size:", glbBuffer.byteLength, "bytes");
-
-    if (glbBuffer.byteLength < 100) {
-      throw new Error("GLB file too small, generation likely failed");
-    }
-
-    const storagePath = `3d/${dishId}.glb`;
-    const { error: uploadError } = await supabase.storage
-      .from("models")
-      .upload(storagePath, glbBuffer, {
-        contentType: "model/gltf-binary",
-        upsert: true,
-      });
-    if (uploadError) throw new Error("Storage upload failed: " + uploadError.message);
-
-    const { data: publicUrlData } = supabase.storage
-      .from("models")
-      .getPublicUrl(storagePath);
-    const publicGlbUrl = publicUrlData.publicUrl;
-
-    // ── Step 6: Update status to ready ────────────────────────────────────
-    const { error: dbError } = await supabase
-      .from("menu_item_models")
-      .upsert(
-        {
-          item_id: dishId,
-          status: "ready",
-          glb_path: publicGlbUrl,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "item_id" }
-      );
-    if (dbError) throw new Error("DB update failed: " + dbError.message);
-
-    console.log("[generate-3d] ✅ Done! GLB:", publicGlbUrl);
-
+    // Répond immédiatement au frontend (<1 seconde)
     return new Response(
-      JSON.stringify({ success: true, model_3d_url: publicGlbUrl }),
+      JSON.stringify({ success: true, status: "waking_up", message: "Génération lancée en arrière-plan" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
   } catch (err) {
-    console.error("[generate-3d] ❌ Error:", err);
-
-    if (dishId) {
-      try {
-        const supabase = createClient(
-          Deno.env.get("SUPABASE_URL") ?? "",
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-        );
-        await supabase
-          .from("menu_item_models")
-          .upsert(
-            { item_id: dishId, status: "failed", updated_at: new Date().toISOString() },
-            { onConflict: "item_id" }
-          );
-      } catch (_) { /* ignore */ }
-    }
-
     return new Response(
       JSON.stringify({ success: false, error: String(err) }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
