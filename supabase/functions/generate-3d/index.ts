@@ -6,10 +6,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const SPACE_URL = "https://microsoft-trellis-2.hf.space";
+
+function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
 // ─── Wake-up du Space ─────────────────────────────────────────────────────────
 
@@ -36,30 +38,8 @@ async function waitForSpaceReady(hfToken: string): Promise<void> {
   throw new Error("Space did not wake up within 5 minutes");
 }
 
-// ─── Gradio helpers ───────────────────────────────────────────────────────────
+// ─── Gradio SSE call ──────────────────────────────────────────────────────────
 
-// Upload a file to the Gradio space and get the server path
-async function gradioUpload(fileBytes: Uint8Array, filename: string, hfToken: string): Promise<string> {
-  const formData = new FormData();
-  formData.append("files", new Blob([fileBytes]), filename);
-  
-  const res = await fetch(`${SPACE_URL}/gradio_api/upload`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${hfToken}` },
-    body: formData,
-    signal: AbortSignal.timeout(30000),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Gradio upload failed ${res.status}: ${txt}`);
-  }
-  const paths = await res.json();
-  console.log("[generate-3d] Uploaded to Gradio:", JSON.stringify(paths));
-  if (Array.isArray(paths) && paths.length > 0) return paths[0];
-  throw new Error("Gradio upload returned no path");
-}
-
-// Calls a Gradio function via queue/join and reads the SSE result
 async function gradioCall(
   fnIndex: number,
   data: unknown[],
@@ -113,26 +93,36 @@ async function gradioCall(
           const json = JSON.parse(dataLine.slice(6));
           // Only care about events for our fn_index
           if (json.fn_index !== undefined && json.fn_index !== fnIndex) continue;
-          
+
           if (json.msg === "estimation") {
-            console.log(`[generate-3d] fn_index=${fnIndex} queue position: ${json.rank}/${json.queue_size}`);
+            console.log(`[generate-3d] fn_index=${fnIndex} queue: ${json.rank}/${json.queue_size}`);
           }
           if (json.msg === "process_starts") {
             console.log(`[generate-3d] fn_index=${fnIndex} processing started`);
           }
           if (json.msg === "process_completed") {
             reader.cancel().catch(() => {});
-            console.log(`[generate-3d] fn_index=${fnIndex} completed:`, JSON.stringify(json.output ?? json).slice(0, 500));
-            if (json.output?.error) throw new Error(`Gradio error: ${json.output.error}`);
+            console.log(`[generate-3d] fn_index=${fnIndex} completed: success=${json.success}, output=${JSON.stringify(json.output).slice(0, 500)}`);
+            
+            if (!json.success) {
+              const errMsg = json.output?.error || json.title || "Unknown Gradio error";
+              throw new Error(`Gradio fn_index=${fnIndex} failed: ${errMsg}`);
+            }
             if (json.output?.data) return json.output.data as unknown[];
             if (json.data) return json.data as unknown[];
-            throw new Error("process_completed but no data: " + JSON.stringify(json).slice(0, 500));
+            // Some endpoints return empty data on success (like start_session)
+            return [];
           }
-          if (json.msg === "close_stream" || json.msg === "error") {
+          if (json.msg === "close_stream") {
+            // Normal stream close, continue
+            reader.cancel().catch(() => {});
+            return [];
+          }
+          if (json.msg === "error") {
             throw new Error(`Stream error: ${JSON.stringify(json)}`);
           }
         } catch (e) {
-          if (String(e).includes("Gradio error") || String(e).includes("Stream") || String(e).includes("no data")) throw e;
+          if (String(e).includes("Gradio") || String(e).includes("Stream")) throw e;
         }
       }
     }
@@ -142,32 +132,26 @@ async function gradioCall(
   }
 }
 
-async function getFnIndexes(hfToken: string): Promise<Record<string, number>> {
-  try {
-    const res = await fetch(`${SPACE_URL}/gradio_api/info`, {
-      headers: { Authorization: `Bearer ${hfToken}` },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (res.ok) {
-      const info = await res.json();
-      console.log("[generate-3d] API info endpoints:", JSON.stringify(Object.keys(info.named_endpoints || {})));
-      const result: Record<string, number> = {};
-      if (info.named_endpoints) {
-        const names = Object.keys(info.named_endpoints);
-        names.forEach((name, i) => {
-          result[name.replace(/^\//, "")] = i;
-        });
-      }
-      return {
-        preprocess_image: result["preprocess_image"] ?? 0,
-        image_to_3d: result["image_to_3d"] ?? 2,
-        extract_glb: result["extract_glb"] ?? 3,
-      };
-    }
-  } catch (e) {
-    console.error("[generate-3d] getFnIndexes error:", e);
+// ─── Upload file to Gradio ────────────────────────────────────────────────────
+
+async function gradioUpload(fileBytes: Uint8Array, filename: string, hfToken: string): Promise<string> {
+  const formData = new FormData();
+  formData.append("files", new Blob([fileBytes]), filename);
+
+  const res = await fetch(`${SPACE_URL}/gradio_api/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${hfToken}` },
+    body: formData,
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Gradio upload failed ${res.status}: ${txt}`);
   }
-  return { preprocess_image: 0, image_to_3d: 2, extract_glb: 3 };
+  const paths = await res.json();
+  console.log("[generate-3d] Uploaded to Gradio:", JSON.stringify(paths));
+  if (Array.isArray(paths) && paths.length > 0) return paths[0];
+  throw new Error("Gradio upload returned no path");
 }
 
 function validateGlb(buffer: ArrayBuffer): void {
@@ -176,8 +160,6 @@ function validateGlb(buffer: ArrayBuffer): void {
   if (magic !== 0x46546C67) throw new Error(`Pas un GLB valide (magic: 0x${magic.toString(16)})`);
   console.log(`[generate-3d] GLB OK: ${(buffer.byteLength / 1024).toFixed(0)} KB`);
 }
-
-function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
 // ─── Pipeline principal (tourne en arrière-plan) ──────────────────────────────
 
@@ -202,54 +184,80 @@ async function runPipeline(
     await waitForSpaceReady(hfToken);
     await updateStatus("processing");
 
-    const fnIdx = await getFnIndexes(hfToken);
-    console.log("[generate-3d] fnIndexes:", JSON.stringify(fnIdx));
+    // Use ONE session_hash for the entire pipeline — TRELLIS stores state per session
+    const sessionHash = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
+    console.log("[generate-3d] Session hash:", sessionHash);
 
-    // 1. Fetch image & upload to Gradio space
+    // fn_index mapping from /gradio_api/info:
+    // 0: start_session, 1: preprocess_image, 2: get_seed, 3: lambda, 
+    // 4: image_to_3d, 5: lambda_1, 6: extract_glb
+
+    // Step 0: Initialize session (required by TRELLIS.2)
+    console.log("[generate-3d] 0/3 start_session");
+    await gradioCall(0, [], sessionHash, hfToken, 30_000);
+    console.log("[generate-3d] Session started");
+
+    // Step 1: Fetch image & upload to Gradio
     console.log("[generate-3d] Fetching image:", imageUrl);
     const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(20000) });
     if (!imgRes.ok) throw new Error(`Cannot fetch image: ${imgRes.status}`);
     const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
     console.log(`[generate-3d] Image loaded: ${(imgBytes.length / 1024).toFixed(0)} KB`);
 
-    // Upload to Gradio space first
     const ext = imageUrl.split(".").pop()?.split("?")[0] || "jpg";
     const gradioPath = await gradioUpload(imgBytes, `dish.${ext}`, hfToken);
 
-    // Each Gradio call gets its own session_hash so SSE streams don't conflict
-    // 2. Preprocess
+    // Step 2: Preprocess image
     console.log("[generate-3d] 1/3 preprocess_image");
-    const sess1 = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
     const [processedImage] = await gradioCall(
-      fnIdx.preprocess_image,
+      1, // preprocess_image
       [{ path: gradioPath, meta: { _type: "gradio.FileData" } }],
-      sess1, hfToken
+      sessionHash, hfToken
     );
-    console.log("[generate-3d] preprocess result:", JSON.stringify(processedImage).slice(0, 200));
+    console.log("[generate-3d] preprocess result:", JSON.stringify(processedImage).slice(0, 300));
 
-    // 3. Image → 3D
+    // Step 3: Image → 3D (all params with defaults from the API spec)
     console.log("[generate-3d] 2/3 image_to_3d");
-    const sess2 = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
-    const [modelState] = await gradioCall(
-      fnIdx.image_to_3d,
-      [processedImage, 0, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0],
-      sess2, hfToken, 300_000
+    const [modelHtml] = await gradioCall(
+      4, // image_to_3d
+      [
+        processedImage,  // image (preprocessed)
+        0,               // seed
+        "1024",          // resolution
+        7.5,             // ss_guidance_strength
+        0.7,             // ss_guidance_rescale
+        12,              // ss_sampling_steps
+        5.0,             // ss_rescale_t
+        7.5,             // shape_slat_guidance_strength
+        0.5,             // shape_slat_guidance_rescale
+        12,              // shape_slat_sampling_steps
+        3.0,             // shape_slat_rescale_t
+        1.0,             // tex_slat_guidance_strength
+        0.0,             // tex_slat_guidance_rescale
+        12,              // tex_slat_sampling_steps
+        3.0,             // tex_slat_rescale_t
+      ],
+      sessionHash, hfToken, 300_000
     );
-    console.log("[generate-3d] image_to_3d result:", JSON.stringify(modelState).slice(0, 200));
+    console.log("[generate-3d] image_to_3d result:", JSON.stringify(modelHtml).slice(0, 300));
 
-    // 4. Extract GLB
+    // Step 4: Extract GLB (only 2 params — model state is in session)
     console.log("[generate-3d] 3/3 extract_glb");
-    const sess3 = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
-    const [glbInfo] = await gradioCall(
-      fnIdx.extract_glb, [modelState, 300000, 2048],
-      sess3, hfToken, 120_000
-    ) as [{ url?: string; path?: string }];
-    console.log("[generate-3d] extract_glb result:", JSON.stringify(glbInfo).slice(0, 300));
-    
-    const glbUrl = glbInfo?.url ?? `${SPACE_URL}/gradio_api/file=${glbInfo?.path}`;
+    const extractResult = await gradioCall(
+      6, // extract_glb
+      [300000, 2048],  // decimation_target, texture_size
+      sessionHash, hfToken, 120_000
+    );
+    console.log("[generate-3d] extract_glb result:", JSON.stringify(extractResult).slice(0, 500));
+
+    // extract_glb returns [glbFileData, downloadFileData]
+    const glbInfo = (extractResult[0] ?? extractResult[1]) as { url?: string; path?: string } | null;
+    if (!glbInfo) throw new Error("extract_glb returned no file data");
+
+    const glbUrl = glbInfo.url ?? `${SPACE_URL}/gradio_api/file=${glbInfo.path}`;
     console.log("[generate-3d] Downloading GLB from:", glbUrl);
 
-    // 5. Download + validate GLB
+    // Step 5: Download + validate GLB
     const glbRes = await fetch(glbUrl, {
       headers: { Authorization: `Bearer ${hfToken}` },
       signal: AbortSignal.timeout(60000),
@@ -258,7 +266,7 @@ async function runPipeline(
     const glbBuffer = await glbRes.arrayBuffer();
     validateGlb(glbBuffer);
 
-    // 6. Upload vers Supabase Storage (bucket = "models")
+    // Step 6: Upload to Supabase Storage
     const storagePath = `${dishId}.glb`;
     const { error: uploadErr } = await supabase.storage
       .from("models")
@@ -268,7 +276,7 @@ async function runPipeline(
     const { data: { publicUrl } } = supabase.storage.from("models").getPublicUrl(storagePath);
     console.log("[generate-3d] Uploaded to storage:", publicUrl);
 
-    // 7. Marque "ready" → déclenche Realtime côté frontend
+    // Step 7: Mark "ready" → triggers Realtime on frontend
     await updateStatus("ready", { glb_path: storagePath });
     console.log("[generate-3d] ✅ Done:", publicUrl);
 
@@ -278,7 +286,7 @@ async function runPipeline(
   }
 }
 
-// ─── Handler HTTP (répond immédiatement) ─────────────────────────────────────
+// ─── Handler HTTP ────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -295,15 +303,12 @@ Deno.serve(async (req) => {
 
     console.log(`[generate-3d] Request received for dish ${dishId}`);
 
-    // Marque immédiatement "pending" dans menu_item_models
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { error: upsertErr } = await supabase
       .from("menu_item_models")
       .upsert({ item_id: dishId, status: "pending" }, { onConflict: "item_id" });
-    
     if (upsertErr) console.error("[generate-3d] upsert error:", upsertErr);
 
-    // Lance le pipeline en arrière-plan — ne bloque PAS la réponse HTTP
     EdgeRuntime.waitUntil(runPipeline(dishId, imageUrl, hfToken, supabaseUrl, supabaseKey));
 
     return new Response(
