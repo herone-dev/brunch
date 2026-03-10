@@ -68,35 +68,61 @@ async function queueJoin(
   throw new Error("queueJoin: all retries failed");
 }
 
-async function waitResult(eventId: string, hfToken: string, timeoutMs = 130_000): Promise<unknown[]> {
-  const deadline = Date.now() + timeoutMs;
+async function waitResult(sessionHash: string, hfToken: string, timeoutMs = 180_000): Promise<unknown[]> {
+  const url = `${SPACE_URL}/gradio_api/queue/data?session_hash=${sessionHash}`;
+  console.log(`[generate-3d] SSE connecting: ${url}`);
 
-  while (Date.now() < deadline) {
-    await sleep(3000);
-    try {
-      const res = await fetch(`${SPACE_URL}/gradio_api/queue/status/${eventId}`, {
-        headers: { Authorization: `Bearer ${hfToken}` },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (res.status === 404) {
-        // Try alternate endpoint format
-        const res2 = await fetch(`${SPACE_URL}/gradio_api/queue/data?session_hash=${eventId}`, {
-          headers: { Authorization: `Bearer ${hfToken}` },
-          signal: AbortSignal.timeout(10000),
-        });
-        if (res2.status === 404) throw new Error("SSE 404: Space went back to sleep");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${hfToken}`, Accept: "text/event-stream" },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`SSE connect failed: ${res.status}`);
+    if (!res.body) throw new Error("SSE: no body");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE events from buffer
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
+
+      for (const part of parts) {
+        const dataLine = part.split("\n").find((l) => l.startsWith("data: "));
+        if (!dataLine) continue;
+        try {
+          const json = JSON.parse(dataLine.slice(6));
+          console.log(`[generate-3d] SSE event: ${json.msg}`);
+
+          if (json.msg === "process_completed" && json.output?.data) {
+            reader.cancel();
+            return json.output.data as unknown[];
+          }
+          if (json.msg === "process_completed" && json.output?.error) {
+            throw new Error(`Gradio error: ${json.output.error}`);
+          }
+          if (json.msg === "close_stream") {
+            throw new Error("Stream closed without result");
+          }
+        } catch (e) {
+          if (String(e).includes("Gradio error") || String(e).includes("Stream closed")) throw e;
+          // ignore parse errors
+        }
       }
-      if (!res.ok) continue;
-
-      const json = await res.json();
-      console.log(`[generate-3d] waitResult status: ${json.status}`);
-      if (json.status === "complete" && json.output?.data) return json.output.data as unknown[];
-      if (json.status === "error") throw new Error(`Gradio error: ${JSON.stringify(json)}`);
-    } catch (err) {
-      if (String(err).includes("404") || String(err).includes("sleep")) throw err;
     }
+    throw new Error("SSE stream ended without result");
+  } finally {
+    clearTimeout(timeout);
   }
-  throw new Error(`Timed out after ${timeoutMs / 1000}s`);
 }
 
 async function getFnIndexes(hfToken: string): Promise<Record<string, number>> {
