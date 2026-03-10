@@ -238,13 +238,19 @@ const PublicMenu = () => {
 
       {/* 3D Viewer — fullscreen-like modal */}
       {show3D && selectedItem?.model?.glb_path && (
-        <DishViewer3D
-          glbUrl={selectedItem.model.glb_path}
-          dishName={getName(selectedItem.translations, lang)}
-          compact={false}
-          className="fixed inset-0 z-50"
-          onClose={() => setShow3D(false)}
-        />
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center" onClick={() => setShow3D(false)}>
+          <div className="relative w-full max-w-lg aspect-square" onClick={(e) => e.stopPropagation()}>
+            <DishViewer3D
+              glbUrl={selectedItem.model.glb_path}
+              dishName={getName(selectedItem.translations, lang)}
+              compact={false}
+              className="w-full h-full"
+            />
+            <button onClick={() => setShow3D(false)} className="absolute top-2 right-2 text-white bg-black/50 rounded-full p-1">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
