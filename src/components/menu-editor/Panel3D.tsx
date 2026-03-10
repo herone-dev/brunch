@@ -14,25 +14,25 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-// ─── Statuts possibles (alignés avec model_3d_status en DB) ──────────────────
-type Status = "idle" | "uploading" | "waking_up" | "generating" | "ready" | "error";
+// ─── Statuts possibles (alignés avec model_status enum en DB) ────────────────
+type Status = "idle" | "uploading" | "pending" | "processing" | "ready" | "failed";
 
 const STATUS_LABELS: Record<Status, string> = {
   idle:       "Prêt",
   uploading:  "Upload photos…",
-  waking_up:  "Réveil du Space IA… (30s-2min)",
-  generating: "Génération 3D… (1-3 min)",
+  pending:    "Réveil du Space IA… (30s-2min)",
+  processing: "Génération 3D… (1-3 min)",
   ready:      "Modèle prêt ✓",
-  error:      "Erreur",
+  failed:     "Erreur",
 };
 
 const STATUS_PROGRESS: Record<Status, number> = {
   idle:       0,
   uploading:  15,
-  waking_up:  30,
-  generating: 60,
+  pending:    30,
+  processing: 60,
   ready:      100,
-  error:      0,
+  failed:     0,
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -47,9 +47,9 @@ interface Panel3DProps {
 export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady }: Panel3DProps) {
   const initStatus = (): Status => {
     if (existingStatus === "ready" && existingModelUrl) return "ready";
-    if (existingStatus === "generating") return "generating";
-    if (existingStatus === "waking_up") return "waking_up";
-    if (existingStatus === "error") return "error";
+    if (existingStatus === "processing") return "processing";
+    if (existingStatus === "pending") return "pending";
+    if (existingStatus === "failed") return "failed";
     return "idle";
   };
 
@@ -57,39 +57,41 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
   const [status, setStatus] = useState<Status>(initStatus);
   const [modelUrl, setModelUrl] = useState<string | null>(existingModelUrl ?? null);
 
-  // ── Supabase Realtime : écoute les changements sur ce plat ────────────────
+  // ── Supabase Realtime : écoute les changements sur menu_item_models ───────
   useEffect(() => {
     // N'écoute que si une génération est en cours
     if (status === "idle" || status === "ready" || status === "uploading") return;
 
     const channel = supabase
-      .channel(`dish-3d-${dishId}`)
+      .channel(`dish-model-${dishId}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
-          table: "menu_items",
-          filter: `id=eq.${dishId}`,
+          table: "menu_item_models",
+          filter: `item_id=eq.${dishId}`,
         },
         (payload) => {
-          const { model_3d_status, model_3d_url } = payload.new as {
-            model_3d_status: string;
-            model_3d_url: string | null;
+          const row = payload.new as {
+            status: string;
+            glb_path: string | null;
           };
 
-          console.log("[Panel3D] Realtime update:", model_3d_status);
+          console.log("[Panel3D] Realtime update:", row.status);
 
-          if (model_3d_status === "waking_up") setStatus("waking_up");
-          if (model_3d_status === "generating") setStatus("generating");
-          if (model_3d_status === "ready" && model_3d_url) {
+          if (row.status === "pending") setStatus("pending");
+          if (row.status === "processing") setStatus("processing");
+          if (row.status === "ready" && row.glb_path) {
             setStatus("ready");
-            setModelUrl(model_3d_url);
-            onModelReady?.(model_3d_url);
+            // Build public URL from storage path
+            const { data } = supabase.storage.from("models").getPublicUrl(row.glb_path);
+            setModelUrl(data.publicUrl);
+            onModelReady?.(data.publicUrl);
             toast.success("Modèle 3D généré !");
           }
-          if (model_3d_status === "error") {
-            setStatus("error");
+          if (row.status === "failed") {
+            setStatus("failed");
             toast.error("Erreur lors de la génération. Réessaie.");
           }
         }
@@ -112,7 +114,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
     onDrop,
     accept: { "image/*": [".jpg", ".jpeg", ".png", ".webp"] },
     maxFiles: 6,
-    disabled: status !== "idle" && status !== "error",
+    disabled: status !== "idle" && status !== "failed",
   });
 
   const removePhoto = (i: number) => {
@@ -125,9 +127,9 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
     for (const { file } of photos) {
       const ext = file.name.split(".").pop();
       const path = `dish-photos/${dishId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("dish-photos").upload(path, file, { upsert: true });
+      const { error } = await supabase.storage.from("menu-media").upload(path, file, { upsert: true });
       if (error) throw new Error(`Upload échoué: ${error.message}`);
-      const { data } = supabase.storage.from("dish-photos").getPublicUrl(path);
+      const { data } = supabase.storage.from("menu-media").getPublicUrl(path);
       urls.push(data.publicUrl);
     }
     return urls;
@@ -143,7 +145,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
       const urls = await uploadPhotos();
 
       // 2. Appel Edge Function — répond en <1s et lance en background
-      setStatus("waking_up");
+      setStatus("pending");
       const { data, error } = await supabase.functions.invoke("generate-3d", {
         body: { dishId, imageUrl: urls[0] },
       });
@@ -156,7 +158,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
       toast.info("Génération lancée ! Le modèle sera prêt dans 1-3 minutes.");
 
     } catch (err) {
-      setStatus("error");
+      setStatus("failed");
       toast.error("Impossible de lancer la génération.");
       console.error("[Panel3D]", err);
     }
@@ -168,7 +170,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
     setModelUrl(null);
   };
 
-  const isProcessing = status === "waking_up" || status === "generating" || status === "uploading";
+  const isProcessing = status === "pending" || status === "processing" || status === "uploading";
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -246,7 +248,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
             <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
             <p className="text-xs text-muted-foreground">{STATUS_LABELS[status]}</p>
           </div>
-          {status === "waking_up" && (
+          {(status === "pending" || status === "processing") && (
             <p className="text-xs text-muted-foreground/50 text-center">
               Tu peux fermer cette fenêtre — tu seras notifié quand c'est prêt.
             </p>
@@ -255,7 +257,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
       )}
 
       {/* Erreur */}
-      {status === "error" && (
+      {status === "failed" && (
         <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 flex gap-2 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <span>La génération a échoué. Vérifie que le Space TRELLIS.2 est accessible et réessaie.</span>
@@ -284,7 +286,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
 
       {/* Boutons */}
       <div className="flex gap-2">
-        {(status === "idle" || status === "error") && (
+        {(status === "idle" || status === "failed") && (
           <Button
             onClick={handleGenerate}
             disabled={photos.length === 0}
@@ -302,7 +304,7 @@ export function Panel3D({ dishId, existingModelUrl, existingStatus, onModelReady
           </Button>
         )}
 
-        {(status === "ready" || status === "error") && (
+        {(status === "ready" || status === "failed") && (
           <Button variant="outline" onClick={handleReset} className="gap-2">
             <Trash2 className="h-4 w-4" />
             Recommencer
@@ -333,10 +335,10 @@ function StatusBadge({ status }: { status: Status }) {
   const map: Record<Status, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; spin?: boolean }> = {
     idle:       { label: "Prêt",          variant: "outline" },
     uploading:  { label: "Upload…",       variant: "secondary", spin: true },
-    waking_up:  { label: "Réveil Space…", variant: "secondary", spin: true },
-    generating: { label: "Génération…",   variant: "default",   spin: true },
+    pending:    { label: "Réveil Space…", variant: "secondary", spin: true },
+    processing: { label: "Génération…",   variant: "default",   spin: true },
     ready:      { label: "Prêt ✓",        variant: "default" },
-    error:      { label: "Erreur",        variant: "destructive" },
+    failed:     { label: "Erreur",        variant: "destructive" },
   };
   const { label, variant, spin } = map[status];
   return (
@@ -345,7 +347,7 @@ function StatusBadge({ status }: { status: Status }) {
         ? <Loader2 className="h-3 w-3 animate-spin" />
         : status === "ready"
           ? <CheckCircle className="h-3 w-3" />
-          : status === "error"
+          : status === "failed"
             ? <AlertCircle className="h-3 w-3" />
             : <Box className="h-3 w-3" />
       }
