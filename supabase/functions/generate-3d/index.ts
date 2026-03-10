@@ -122,9 +122,11 @@ async function gradioCall(
           }
           if (json.msg === "process_completed") {
             reader.cancel().catch(() => {});
+            console.log(`[generate-3d] fn_index=${fnIndex} completed:`, JSON.stringify(json.output ?? json).slice(0, 500));
             if (json.output?.error) throw new Error(`Gradio error: ${json.output.error}`);
             if (json.output?.data) return json.output.data as unknown[];
-            throw new Error("process_completed but no data");
+            if (json.data) return json.data as unknown[];
+            throw new Error("process_completed but no data: " + JSON.stringify(json).slice(0, 500));
           }
           if (json.msg === "close_stream" || json.msg === "error") {
             throw new Error(`Stream error: ${JSON.stringify(json)}`);
