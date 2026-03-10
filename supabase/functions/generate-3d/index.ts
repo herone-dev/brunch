@@ -38,34 +38,25 @@ async function waitForSpaceReady(hfToken: string): Promise<void> {
 
 // ─── Gradio helpers ───────────────────────────────────────────────────────────
 
-async function queueJoin(
-  fnIndex: number,
-  data: unknown[],
-  sessionHash: string,
-  hfToken: string,
-  retries = 3
-): Promise<string> {
-  for (let i = 1; i <= retries; i++) {
-    try {
-      const res = await fetch(`${SPACE_URL}/gradio_api/queue/join`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${hfToken}` },
-        body: JSON.stringify({ fn_index: fnIndex, data, session_hash: sessionHash }),
-        signal: AbortSignal.timeout(15000),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.event_id) return json.event_id;
-      }
-      const text = await res.text().catch(() => "");
-      throw new Error(`queue/join ${res.status}: ${text}`);
-    } catch (err) {
-      console.error(`[generate-3d] queueJoin attempt ${i}/${retries}:`, err);
-      if (i === retries) throw err;
-      await sleep(3000);
-    }
+// Upload a file to the Gradio space and get the server path
+async function gradioUpload(fileBytes: Uint8Array, filename: string, hfToken: string): Promise<string> {
+  const formData = new FormData();
+  formData.append("files", new Blob([fileBytes]), filename);
+  
+  const res = await fetch(`${SPACE_URL}/gradio_api/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${hfToken}` },
+    body: formData,
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Gradio upload failed ${res.status}: ${txt}`);
   }
-  throw new Error("queueJoin: all retries failed");
+  const paths = await res.json();
+  console.log("[generate-3d] Uploaded to Gradio:", JSON.stringify(paths));
+  if (Array.isArray(paths) && paths.length > 0) return paths[0];
+  throw new Error("Gradio upload returned no path");
 }
 
 // Calls a Gradio function via queue/join and reads the SSE result
@@ -131,9 +122,11 @@ async function gradioCall(
           }
           if (json.msg === "process_completed") {
             reader.cancel().catch(() => {});
+            console.log(`[generate-3d] fn_index=${fnIndex} completed:`, JSON.stringify(json.output ?? json).slice(0, 500));
             if (json.output?.error) throw new Error(`Gradio error: ${json.output.error}`);
             if (json.output?.data) return json.output.data as unknown[];
-            throw new Error("process_completed but no data");
+            if (json.data) return json.data as unknown[];
+            throw new Error("process_completed but no data: " + JSON.stringify(json).slice(0, 500));
           }
           if (json.msg === "close_stream" || json.msg === "error") {
             throw new Error(`Stream error: ${JSON.stringify(json)}`);
@@ -212,20 +205,16 @@ async function runPipeline(
     const fnIdx = await getFnIndexes(hfToken);
     console.log("[generate-3d] fnIndexes:", JSON.stringify(fnIdx));
 
-    // 1. Fetch image & convert to base64
+    // 1. Fetch image & upload to Gradio space
     console.log("[generate-3d] Fetching image:", imageUrl);
     const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(20000) });
     if (!imgRes.ok) throw new Error(`Cannot fetch image: ${imgRes.status}`);
     const imgBytes = new Uint8Array(await imgRes.arrayBuffer());
-    let imgBase64 = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < imgBytes.length; i += chunkSize) {
-      imgBase64 += String.fromCharCode(...imgBytes.slice(i, i + chunkSize));
-    }
-    imgBase64 = btoa(imgBase64);
-    const mimeType = imgRes.headers.get("content-type") ?? "image/jpeg";
-    const imageDataUrl = `data:${mimeType};base64,${imgBase64}`;
     console.log(`[generate-3d] Image loaded: ${(imgBytes.length / 1024).toFixed(0)} KB`);
+
+    // Upload to Gradio space first
+    const ext = imageUrl.split(".").pop()?.split("?")[0] || "jpg";
+    const gradioPath = await gradioUpload(imgBytes, `dish.${ext}`, hfToken);
 
     // Each Gradio call gets its own session_hash so SSE streams don't conflict
     // 2. Preprocess
@@ -233,7 +222,7 @@ async function runPipeline(
     const sess1 = crypto.randomUUID().replace(/-/g, "").slice(0, 11);
     const [processedImage] = await gradioCall(
       fnIdx.preprocess_image,
-      [{ path: imageDataUrl, url: imageDataUrl, orig_name: "dish.jpg", meta: { _type: "gradio.FileData" } }],
+      [{ path: gradioPath, meta: { _type: "gradio.FileData" } }],
       sess1, hfToken
     );
     console.log("[generate-3d] preprocess result:", JSON.stringify(processedImage).slice(0, 200));
