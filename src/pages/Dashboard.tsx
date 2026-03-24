@@ -231,6 +231,8 @@ const Dashboard = () => {
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selected3DItem, setSelected3DItem] = useState<ItemWithDetails | null>(null);
+  const [analyticsDays, setAnalyticsDays] = useState(30);
+  const { data: analytics, isLoading: analyticsLoading } = useQrAnalytics(restaurant?.id, analyticsDays);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
