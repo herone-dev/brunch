@@ -14,12 +14,28 @@ import { DishViewer3D } from "@/components/menu-editor/DishViewer3D";
 
 const PublicMenu = () => {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
   const { data: restaurant, isLoading, error } = usePublicMenu(slug);
   const [lang, setLang] = useState<Lang>(detectLang());
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<ItemWithDetails | null>(null);
   const [show3D, setShow3D] = useState(false);
+  const scanTracked = useRef(false);
+
+  // Track QR scan once per visit
+  useEffect(() => {
+    if (restaurant && !scanTracked.current) {
+      scanTracked.current = true;
+      const table = searchParams.get('table');
+      supabase.from('analytics_events').insert({
+        restaurant_id: restaurant.id,
+        menu_id: restaurant.menu?.id || null,
+        type: 'qr_scan',
+        meta: { slug, table: table || null, ua: navigator.userAgent },
+      }).then(() => {});
+    }
+  }, [restaurant, slug, searchParams]);
 
   const menu = restaurant?.menu;
   const categories = menu?.categories || [];
