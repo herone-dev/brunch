@@ -464,6 +464,12 @@ const Dashboard = () => {
               <RestaurantSettings restaurant={restaurant} />
             </TabsContent>
           </Tabs>
+
+          <Generate3DDialog
+            open={!!selected3DItem}
+            onOpenChange={(open) => { if (!open) setSelected3DItem(null); }}
+            item={selected3DItem}
+          />
         </main>
       )}
     </div>
