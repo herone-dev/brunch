@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyRestaurant, useRestaurantMenus, useRestaurantItems, useModelJobs, useQrScanCount } from "@/hooks/useDashboard";
 import { useQrAnalytics } from "@/hooks/useQrAnalytics";
+import { useSubscription, getPlanLabel, getRemainingGenerations, isGenerationAllowed } from "@/hooks/useSubscription";
 import { useCreateRestaurant, useCreateMenu } from "@/hooks/useRestaurants";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -233,6 +234,9 @@ const Dashboard = () => {
   const [selected3DItem, setSelected3DItem] = useState<ItemWithDetails | null>(null);
   const [analyticsDays, setAnalyticsDays] = useState(30);
   const { data: analytics, isLoading: analyticsLoading } = useQrAnalytics(restaurant?.id, analyticsDays);
+  const { data: subscription } = useSubscription(restaurant?.id);
+  const remaining3D = getRemainingGenerations(subscription);
+  const canGenerate = isGenerationAllowed(subscription);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
@@ -562,6 +566,44 @@ const Dashboard = () => {
             </TabsContent>
 
             <TabsContent value="library" className="space-y-6 mt-0">
+              {/* Quota 3D */}
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Box className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">Générations 3D</p>
+                        <p className="text-xs text-muted-foreground">
+                          Plan {getPlanLabel(subscription?.plan || 'free')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-primary">
+                        {remaining3D === 'unlimited' ? '∞' : remaining3D}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {remaining3D === 'unlimited' ? 'Illimité' : `restante${typeof remaining3D === 'number' && remaining3D > 1 ? 's' : ''}`}
+                      </p>
+                    </div>
+                  </div>
+                  {subscription?.plan === 'free' && (
+                    <div className="mt-3 space-y-2">
+                      <Progress value={(subscription.generations_used / subscription.generations_limit) * 100} className="h-1.5" />
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{subscription.generations_used} / {subscription.generations_limit} utilisées</span>
+                        <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => setActiveTab("settings")}>
+                          Passer au plan Starter →
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <div>
                 <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
                   <Box className="h-5 w-5" /> Bibliothèque 3D

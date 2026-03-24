@@ -548,6 +548,62 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          generations_limit: number
+          generations_used: number
+          id: string
+          plan: string
+          restaurant_id: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          generations_limit?: number
+          generations_used?: number
+          id?: string
+          plan?: string
+          restaurant_id: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          generations_limit?: number
+          generations_used?: number
+          id?: string
+          plan?: string
+          restaurant_id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -572,6 +628,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_generation_count: {
+        Args: { _restaurant_id: string }
+        Returns: undefined
       }
       is_restaurant_member: {
         Args: { _restaurant_id: string; _user_id: string }

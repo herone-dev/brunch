@@ -252,6 +252,33 @@ export function useGenerate3D({ dishId, onModelReady }: UseGenerate3DOptions) {
 
       // Step 6: Update DB → ready
       await updateDbStatus("ready", { glb_path: glbStoragePath });
+
+      // Step 7: Increment generations_used in subscription
+      const { data: itemData } = await supabase
+        .from("menu_items")
+        .select("category_id")
+        .eq("id", dishId)
+        .single();
+      if (itemData) {
+        const { data: catData } = await supabase
+          .from("menu_categories")
+          .select("menu_id")
+          .eq("id", itemData.category_id)
+          .single();
+        if (catData) {
+          const { data: menuData } = await supabase
+            .from("menus")
+            .select("restaurant_id")
+            .eq("id", catData.menu_id)
+            .single();
+          if (menuData) {
+            await supabase.rpc("increment_generation_count" as any, {
+              _restaurant_id: menuData.restaurant_id,
+            });
+          }
+        }
+      }
+
       setStatus("ready");
       setModelUrl(publicUrl);
       onModelReady?.(publicUrl);
