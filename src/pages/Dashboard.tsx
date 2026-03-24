@@ -405,7 +405,7 @@ const Dashboard = () => {
 
                   {/* Preview of first items */}
                   {items?.slice(0, 5).map((item) => (
-                    <ItemCard key={item.id} item={item} compact />
+                    <ItemCard key={item.id} item={item} compact onClick={() => setSelected3DItem(item)} />
                   ))}
                 </div>
               </section>
@@ -454,7 +454,7 @@ const Dashboard = () => {
               ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                   {items.map((item) => (
-                    <ItemCard key={item.id} item={item} />
+                    <ItemCard key={item.id} item={item} onClick={() => setSelected3DItem(item)} />
                   ))}
                 </div>
               )}
