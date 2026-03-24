@@ -453,6 +453,24 @@ export type Database = {
           },
         ]
       }
+      platform_admins: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       restaurant_members: {
         Row: {
           created_at: string
@@ -633,6 +651,7 @@ export type Database = {
         Args: { _restaurant_id: string }
         Returns: undefined
       }
+      is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       is_restaurant_member: {
         Args: { _restaurant_id: string; _user_id: string }
         Returns: boolean
