@@ -183,13 +183,16 @@ const modelStatusLabel: Record<string, string> = {
 };
 
 /* ─── Item card (library style) ─── */
-const ItemCard = ({ item, compact }: { item: ItemWithDetails; compact?: boolean }) => {
+const ItemCard = ({ item, compact, onClick }: { item: ItemWithDetails; compact?: boolean; onClick?: () => void }) => {
   const frName = item.translations.find((t) => t.lang === "fr")?.name || "Sans nom";
   const status = item.model?.status || "none";
   const hasMedia = item.media.length > 0;
 
   return (
-    <div className={`rounded-lg border border-border bg-card overflow-hidden hover:border-primary/40 transition-all hover:shadow-sm group ${compact ? 'shrink-0 w-28' : ''}`}>
+    <div
+      onClick={onClick}
+      className={`rounded-lg border border-border bg-card overflow-hidden hover:border-primary/40 transition-all hover:shadow-sm group cursor-pointer ${compact ? 'shrink-0 w-28' : ''}`}
+    >
       <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
         {hasMedia ? (
           <img
@@ -224,6 +227,7 @@ const Dashboard = () => {
   const createMenu = useCreateMenu();
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [selected3DItem, setSelected3DItem] = useState<ItemWithDetails | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
