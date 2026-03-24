@@ -24,6 +24,7 @@ import type { ItemWithDetails, Menu, ModelJob } from "@/lib/types";
 import { RestaurantSettings } from "@/components/RestaurantSettings";
 import { MenuScheduleDialog } from "@/components/MenuScheduleDialog";
 import { NewMenuDialog } from "@/components/NewMenuDialog";
+import { Generate3DDialog } from "@/components/Generate3DDialog";
 
 /* ─── Onboarding dialog (first time) ─── */
 const OnboardingDialog = ({ open, onCreated }: { open: boolean; onCreated: (id: string) => void }) => {
@@ -182,13 +183,16 @@ const modelStatusLabel: Record<string, string> = {
 };
 
 /* ─── Item card (library style) ─── */
-const ItemCard = ({ item, compact }: { item: ItemWithDetails; compact?: boolean }) => {
+const ItemCard = ({ item, compact, onClick }: { item: ItemWithDetails; compact?: boolean; onClick?: () => void }) => {
   const frName = item.translations.find((t) => t.lang === "fr")?.name || "Sans nom";
   const status = item.model?.status || "none";
   const hasMedia = item.media.length > 0;
 
   return (
-    <div className={`rounded-lg border border-border bg-card overflow-hidden hover:border-primary/40 transition-all hover:shadow-sm group ${compact ? 'shrink-0 w-28' : ''}`}>
+    <div
+      onClick={onClick}
+      className={`rounded-lg border border-border bg-card overflow-hidden hover:border-primary/40 transition-all hover:shadow-sm group cursor-pointer ${compact ? 'shrink-0 w-28' : ''}`}
+    >
       <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
         {hasMedia ? (
           <img
@@ -223,6 +227,7 @@ const Dashboard = () => {
   const createMenu = useCreateMenu();
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [selected3DItem, setSelected3DItem] = useState<ItemWithDetails | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
@@ -400,7 +405,7 @@ const Dashboard = () => {
 
                   {/* Preview of first items */}
                   {items?.slice(0, 5).map((item) => (
-                    <ItemCard key={item.id} item={item} compact />
+                    <ItemCard key={item.id} item={item} compact onClick={() => setSelected3DItem(item)} />
                   ))}
                 </div>
               </section>
@@ -449,7 +454,7 @@ const Dashboard = () => {
               ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                   {items.map((item) => (
-                    <ItemCard key={item.id} item={item} />
+                    <ItemCard key={item.id} item={item} onClick={() => setSelected3DItem(item)} />
                   ))}
                 </div>
               )}
@@ -459,6 +464,12 @@ const Dashboard = () => {
               <RestaurantSettings restaurant={restaurant} />
             </TabsContent>
           </Tabs>
+
+          <Generate3DDialog
+            open={!!selected3DItem}
+            onOpenChange={(open) => { if (!open) setSelected3DItem(null); }}
+            item={selected3DItem}
+          />
         </main>
       )}
     </div>
