@@ -293,8 +293,11 @@ const Dashboard = () => {
       {restaurant && (
         <main className="max-w-5xl mx-auto px-6 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="w-full max-w-lg">
+            <TabsList className="w-full max-w-2xl">
               <TabsTrigger value="dashboard" className="flex-1">Dashboard</TabsTrigger>
+              <TabsTrigger value="analytics" className="flex-1 flex items-center gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5" /> Analytics QR
+              </TabsTrigger>
               <TabsTrigger value="library" className="flex-1 flex items-center gap-1.5">
                 <Box className="h-3.5 w-3.5" /> Bibliothèque 3D
               </TabsTrigger>
