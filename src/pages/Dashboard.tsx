@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyRestaurant, useRestaurantMenus, useRestaurantItems, useModelJobs, useQrScanCount } from "@/hooks/useDashboard";
+import { useQrAnalytics } from "@/hooks/useQrAnalytics";
 import { useCreateRestaurant, useCreateMenu } from "@/hooks/useRestaurants";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,10 @@ import {
   Box, CheckCircle2, Clock, AlertCircle, Loader2,
   FileText, Eye, EyeOff, Settings, Image as ImageIcon,
   ExternalLink, ScanLine, MoreVertical, Trash2,
+  BarChart3, TrendingUp, Smartphone, Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import type { ItemWithDetails, Menu, ModelJob } from "@/lib/types";
 import { RestaurantSettings } from "@/components/RestaurantSettings";
 import { MenuScheduleDialog } from "@/components/MenuScheduleDialog";
