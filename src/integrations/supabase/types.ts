@@ -629,6 +629,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_generation_count: {
+        Args: { _restaurant_id: string }
+        Returns: undefined
+      }
       is_restaurant_member: {
         Args: { _restaurant_id: string; _user_id: string }
         Returns: boolean
