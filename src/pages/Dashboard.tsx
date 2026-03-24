@@ -24,6 +24,7 @@ import type { ItemWithDetails, Menu, ModelJob } from "@/lib/types";
 import { RestaurantSettings } from "@/components/RestaurantSettings";
 import { MenuScheduleDialog } from "@/components/MenuScheduleDialog";
 import { NewMenuDialog } from "@/components/NewMenuDialog";
+import { Generate3DDialog } from "@/components/Generate3DDialog";
 
 /* ─── Onboarding dialog (first time) ─── */
 const OnboardingDialog = ({ open, onCreated }: { open: boolean; onCreated: (id: string) => void }) => {
