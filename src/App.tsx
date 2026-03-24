@@ -11,6 +11,7 @@ import MenuEditor from "./pages/MenuEditor";
 import PublicMenu from "./pages/PublicMenu";
 import QRCodePage from "./pages/QRCodePage";
 import NotFound from "./pages/NotFound";
+import AdminPage from "./pages/AdminPage";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/app/restaurants/:restaurantId/menu" element={<MenuEditor />} />
           <Route path="/app/restaurants/:restaurantId/qr" element={<QRCodePage />} />
           <Route path="/m/:slug" element={<PublicMenu />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
