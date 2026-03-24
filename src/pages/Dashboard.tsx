@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyRestaurant, useRestaurantMenus, useRestaurantItems, useModelJobs, useQrScanCount } from "@/hooks/useDashboard";
+import { useQrAnalytics } from "@/hooks/useQrAnalytics";
 import { useCreateRestaurant, useCreateMenu } from "@/hooks/useRestaurants";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,10 @@ import {
   Box, CheckCircle2, Clock, AlertCircle, Loader2,
   FileText, Eye, EyeOff, Settings, Image as ImageIcon,
   ExternalLink, ScanLine, MoreVertical, Trash2,
+  BarChart3, TrendingUp, Smartphone, Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import type { ItemWithDetails, Menu, ModelJob } from "@/lib/types";
 import { RestaurantSettings } from "@/components/RestaurantSettings";
 import { MenuScheduleDialog } from "@/components/MenuScheduleDialog";
@@ -228,6 +231,8 @@ const Dashboard = () => {
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selected3DItem, setSelected3DItem] = useState<ItemWithDetails | null>(null);
+  const [analyticsDays, setAnalyticsDays] = useState(30);
+  const { data: analytics, isLoading: analyticsLoading } = useQrAnalytics(restaurant?.id, analyticsDays);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
@@ -288,8 +293,11 @@ const Dashboard = () => {
       {restaurant && (
         <main className="max-w-5xl mx-auto px-6 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="w-full max-w-lg">
+            <TabsList className="w-full max-w-2xl">
               <TabsTrigger value="dashboard" className="flex-1">Dashboard</TabsTrigger>
+              <TabsTrigger value="analytics" className="flex-1 flex items-center gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5" /> Analytics QR
+              </TabsTrigger>
               <TabsTrigger value="library" className="flex-1 flex items-center gap-1.5">
                 <Box className="h-3.5 w-3.5" /> Bibliothèque 3D
               </TabsTrigger>
@@ -411,7 +419,148 @@ const Dashboard = () => {
               </section>
             </TabsContent>
 
-            {/* ── Bibliothèque 3D tab ── */}
+            {/* ── Analytics QR tab ── */}
+            <TabsContent value="analytics" className="space-y-6 mt-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" /> Analytics QR Code
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Suivez les scans de vos QR codes en temps réel
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  {[7, 30, 90].map(d => (
+                    <Button
+                      key={d}
+                      size="sm"
+                      variant={analyticsDays === d ? "default" : "outline"}
+                      className="h-7 text-xs px-2.5"
+                      onClick={() => setAnalyticsDays(d)}
+                    >
+                      {d}j
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* KPI cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <ScanLine className="h-5 w-5 mx-auto text-primary mb-1" />
+                    <p className="text-2xl font-bold">{analytics?.total ?? 0}</p>
+                    <p className="text-[10px] text-muted-foreground">Scans ({analyticsDays}j)</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <Calendar className="h-5 w-5 mx-auto text-primary mb-1" />
+                    <p className="text-2xl font-bold">{analytics?.todayCount ?? 0}</p>
+                    <p className="text-[10px] text-muted-foreground">Aujourd'hui</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <TrendingUp className="h-5 w-5 mx-auto text-primary mb-1" />
+                    <p className="text-2xl font-bold">{analytics?.weekCount ?? 0}</p>
+                    <p className="text-[10px] text-muted-foreground">Cette semaine</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <Smartphone className="h-5 w-5 mx-auto text-primary mb-1" />
+                    <p className="text-2xl font-bold">{analytics?.peakHour ?? '-'}</p>
+                    <p className="text-[10px] text-muted-foreground">Heure de pointe</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Scans par jour</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {analyticsLoading ? (
+                    <Skeleton className="h-48 w-full" />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={analytics?.daily || []}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={v => { const d = new Date(v); return `${d.getDate()}/${d.getMonth() + 1}`; }}
+                          className="text-[10px]"
+                          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                        />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                        <Tooltip
+                          labelFormatter={v => new Date(v).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid hsl(var(--border))' }}
+                        />
+                        <Bar dataKey="count" name="Scans" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Table breakdown */}
+              {analytics?.byTable && analytics.byTable.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Scans par table</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {analytics.byTable.map(t => {
+                        const pct = analytics.total > 0 ? Math.round((t.count / analytics.total) * 100) : 0;
+                        return (
+                          <div key={t.table} className="flex items-center gap-3">
+                            <Badge variant="outline" className="text-[10px] min-w-[60px] justify-center">
+                              {t.table === 'sans table' ? 'Direct' : `Table ${t.table}`}
+                            </Badge>
+                            <div className="flex-1">
+                              <Progress value={pct} className="h-2" />
+                            </div>
+                            <span className="text-xs font-medium w-12 text-right">{t.count} ({pct}%)</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recent scans */}
+              {analytics?.events && analytics.events.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Derniers scans</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      {analytics.events.slice(0, 50).map(e => (
+                        <div key={e.id} className="flex items-center justify-between text-xs py-1.5 border-b border-border last:border-0">
+                          <div className="flex items-center gap-2">
+                            <ScanLine className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">
+                              {new Date(e.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {(e.meta as any)?.table ? `Table ${(e.meta as any).table}` : 'Direct'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
             <TabsContent value="library" className="space-y-6 mt-0">
               <div>
                 <h2 className="text-lg font-semibold flex items-center gap-2 mb-1">
