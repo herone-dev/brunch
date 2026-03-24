@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { usePublicMenu } from "@/hooks/usePublicMenu";
+import { supabase } from "@/integrations/supabase/client";
 import { detectLang, t, type Lang } from "@/lib/i18n";
 import type { ItemWithDetails, CategoryWithItems } from "@/lib/types";
 import { Button } from "@/components/ui/button";
