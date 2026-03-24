@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMyRestaurant, useRestaurantMenus, useRestaurantItems, useModelJobs, useQrScanCount } from "@/hooks/useDashboard";
 import { useQrAnalytics } from "@/hooks/useQrAnalytics";
+import { useSubscription, getPlanLabel, getRemainingGenerations, isGenerationAllowed } from "@/hooks/useSubscription";
 import { useCreateRestaurant, useCreateMenu } from "@/hooks/useRestaurants";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -233,6 +234,9 @@ const Dashboard = () => {
   const [selected3DItem, setSelected3DItem] = useState<ItemWithDetails | null>(null);
   const [analyticsDays, setAnalyticsDays] = useState(30);
   const { data: analytics, isLoading: analyticsLoading } = useQrAnalytics(restaurant?.id, analyticsDays);
+  const { data: subscription } = useSubscription(restaurant?.id);
+  const remaining3D = getRemainingGenerations(subscription);
+  const canGenerate = isGenerationAllowed(subscription);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/login");
